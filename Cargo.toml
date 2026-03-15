@@ -1,0 +1,8 @@
+[workspace]
+members = [
+  "contracts/rewards",
+  "contracts/campaign",
+]
+
+[workspace.metadata]
+description = "Trivela - Stellar Soroban Campaign & Rewards Platform"

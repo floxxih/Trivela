@@ -1,0 +1,34 @@
+{
+  "name": "trivela",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Trivela - Stellar Soroban Campaign & Rewards Platform",
+  "scripts": {
+    "build": "npm run build:contracts && npm run build:backend && npm run build:frontend",
+    "build:contracts": "cd contracts/rewards && stellar contract build 2>/dev/null || cargo build --target wasm32-unknown-unknown --release",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "test": "npm run test:contracts && npm run test:backend",
+    "test:contracts": "cargo test --workspace",
+    "test:backend": "npm run test --workspace=backend"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "keywords": [
+    "stellar",
+    "soroban",
+    "drip",
+    "rewards",
+    "campaign"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FinesseStudioLab/Trivela.git"
+  }
+}
