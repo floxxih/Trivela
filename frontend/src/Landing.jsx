@@ -11,7 +11,7 @@ export default function Landing() {
 
   useEffect(() => {
     const api = import.meta.env.VITE_API_URL || '';
-    fetch(`${api}/api/campaigns`)
+    fetch(`${api}/api/v1/campaigns`)
       .then((r) => r.json())
       .then(setCampaigns)
       .catch(() => setCampaigns([]));
