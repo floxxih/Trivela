@@ -1,0 +1,40 @@
+name: Frontend CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Detect optional frontend scripts
+        id: scripts
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; import pkg from './frontend/package.json' with { type: 'json' }; fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_lint=${pkg.scripts?.lint ? 'true' : 'false'}\nhas_test=${pkg.scripts?.test ? 'true' : 'false'}\n`);"
+
+      - name: Build frontend
+        run: npm run build --workspace=frontend
+
+      - name: Lint frontend
+        if: steps.scripts.outputs.has_lint == 'true'
+        run: npm run lint --workspace=frontend
+
+      - name: Test frontend
+        if: steps.scripts.outputs.has_test == 'true'
+        run: npm run test --workspace=frontend
