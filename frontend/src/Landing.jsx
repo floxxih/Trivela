@@ -1,129 +1,17 @@
 import { useEffect, useState } from 'react';
 import {
-  Address,
-  Contract,
-  Networks,
-  TransactionBuilder,
-  BASE_FEE,
-  scValToNative,
-  nativeToScVal,
-  rpc,
-} from '@stellar/stellar-sdk';
+  getWalletAddress,
+  fetchRewardsBalance,
+  formatPoints,
+  normalizeError,
+} from './stellar';
+import ClaimRewards from './ClaimRewards';
 import './Landing.css';
 
 const GITHUB_REPO = 'https://github.com/FinesseStudioLab/Trivela';
 const GITHUB_ISSUES = 'https://github.com/FinesseStudioLab/Trivela/issues';
 const STELLAR_DOCS = 'https://developers.stellar.org/docs';
 const DRIP_WAVE = 'https://www.drips.network/wave/stellar';
-const SOROBAN_RPC_URL =
-  import.meta.env.VITE_SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org';
-const REWARDS_CONTRACT_ID = import.meta.env.VITE_REWARDS_CONTRACT_ID || '';
-const DEFAULT_NETWORK_PASSPHRASE =
-  import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
-
-function getFreighterApi() {
-  const freighterApi = window.freighterApi;
-
-  if (!freighterApi) {
-    throw new Error('Freighter API is unavailable. Install or unlock the Freighter browser extension.');
-  }
-
-  return freighterApi;
-}
-
-function formatPoints(points) {
-  if (typeof points === 'bigint') {
-    return points.toString();
-  }
-
-  if (typeof points === 'number') {
-    return String(points);
-  }
-
-  return '0';
-}
-
-function normalizeError(error) {
-  if (!error) {
-    return 'Unable to load points right now.';
-  }
-
-  const message =
-    typeof error === 'string'
-      ? error
-      : error.message || error.toString?.() || 'Unable to load points right now.';
-
-  if (/not found|missing|404/i.test(message)) {
-    return 'Rewards contract is not deployed on the configured Soroban network yet.';
-  }
-
-  if (/unsupported address type/i.test(message)) {
-    return 'Connected wallet address is invalid for Soroban calls.';
-  }
-
-  return message;
-}
-
-async function getWalletAddress() {
-  const freighterApi = getFreighterApi();
-  const freighterStatus = await freighterApi.isConnected();
-  if (freighterStatus.error) {
-    throw new Error(freighterStatus.error);
-  }
-
-  if (!freighterStatus.isConnected) {
-    throw new Error('Freighter extension was not detected. Install or unlock Freighter to connect a wallet.');
-  }
-
-  const existingAddress = await freighterApi.getAddress();
-  if (existingAddress.error) {
-    throw new Error(existingAddress.error);
-  }
-
-  if (existingAddress.address) {
-    return existingAddress.address;
-  }
-
-  const access = await freighterApi.requestAccess();
-  if (access.error) {
-    throw new Error(access.error);
-  }
-
-  if (!access.address) {
-    throw new Error('Freighter did not return a wallet address.');
-  }
-
-  return access.address;
-}
-
-async function fetchRewardsBalance(walletAddress) {
-  if (!REWARDS_CONTRACT_ID) {
-    throw new Error('Set VITE_REWARDS_CONTRACT_ID to load on-chain points.');
-  }
-
-  const server = new rpc.Server(SOROBAN_RPC_URL);
-  const sourceAccount = await server.getAccount(walletAddress);
-  const contract = new Contract(REWARDS_CONTRACT_ID);
-  const transaction = new TransactionBuilder(sourceAccount, {
-    fee: BASE_FEE,
-    networkPassphrase: DEFAULT_NETWORK_PASSPHRASE,
-  })
-    .addOperation(contract.call('balance', nativeToScVal(Address.fromString(walletAddress))))
-    .setTimeout(30)
-    .build();
-
-  const simulation = await server.simulateTransaction(transaction);
-
-  if (simulation.error) {
-    throw new Error(simulation.error);
-  }
-
-  if (!simulation.result) {
-    throw new Error('Soroban RPC returned no result for rewards balance.');
-  }
-
-  return scValToNative(simulation.result.retval);
-}
 
 export default function Landing() {
   const [campaigns, setCampaigns] = useState([]);
@@ -264,6 +152,16 @@ export default function Landing() {
           )}
 
           {pointsError && <p className="rewards-error">{pointsError}</p>}
+
+          {walletAddress && (
+            <ClaimRewards
+              walletAddress={walletAddress}
+              onClaimSuccess={(newBalance) => {
+                if (newBalance !== null) setPoints(newBalance);
+                else loadPoints();
+              }}
+            />
+          )}
         </div>
       </section>
 

@@ -26,7 +26,13 @@ jobs:
       - name: Detect optional frontend scripts
         id: scripts
         run: |
-          node --input-type=module -e "import fs from 'node:fs'; import pkg from './frontend/package.json' with { type: 'json' }; fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_lint=${pkg.scripts?.lint ? 'true' : 'false'}\nhas_test=${pkg.scripts?.test ? 'true' : 'false'}\n`);"
+          node --input-type=module <<'EOF'
+          import fs from 'node:fs';
+          const pkg = JSON.parse(fs.readFileSync('./frontend/package.json', 'utf8'));
+          const out = process.env.GITHUB_OUTPUT;
+          fs.appendFileSync(out, 'has_lint=' + (pkg.scripts?.lint ? 'true' : 'false') + '\n');
+          fs.appendFileSync(out, 'has_test=' + (pkg.scripts?.test ? 'true' : 'false') + '\n');
+          EOF
 
       - name: Build frontend
         run: npm run build --workspace=frontend
