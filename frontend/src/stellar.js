@@ -23,6 +23,8 @@ export const SOROBAN_RPC_URL =
 
 export const REWARDS_CONTRACT_ID = import.meta.env.VITE_REWARDS_CONTRACT_ID || '';
 
+export const CAMPAIGN_CONTRACT_ID = import.meta.env.VITE_CAMPAIGN_CONTRACT_ID || '';
+
 export const NETWORK_PASSPHRASE =
     import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
 
@@ -216,4 +218,126 @@ export async function submitClaimTransaction(walletAddress, amount) {
         : null;
 
     return { hash: sendResult.hash, newBalance };
+}
+
+/* ---------- campaign contract helpers ---------- */
+
+/**
+ * Simulate a read-only `is_participant(participant)` call.
+ *
+ * Returns `true` if the wallet is already registered, `false` otherwise.
+ */
+export async function checkParticipantStatus(walletAddress) {
+    if (!CAMPAIGN_CONTRACT_ID) {
+        throw new Error('Set VITE_CAMPAIGN_CONTRACT_ID to check participant status.');
+    }
+
+    const server = new rpc.Server(SOROBAN_RPC_URL);
+    const sourceAccount = await server.getAccount(walletAddress);
+    const contract = new Contract(CAMPAIGN_CONTRACT_ID);
+
+    const tx = new TransactionBuilder(sourceAccount, {
+        fee: BASE_FEE,
+        networkPassphrase: NETWORK_PASSPHRASE,
+    })
+        .addOperation(
+            contract.call(
+                'is_participant',
+                nativeToScVal(Address.fromString(walletAddress)),
+            ),
+        )
+        .setTimeout(30)
+        .build();
+
+    const simulation = await server.simulateTransaction(tx);
+
+    if (simulation.error) throw new Error(simulation.error);
+    if (!simulation.result) return false;
+
+    return scValToNative(simulation.result.retval);
+}
+
+/**
+ * Build, sign (Freighter), submit, and poll a `register(participant)` call
+ * on the campaign contract.
+ *
+ * Returns `{ hash: string, alreadyRegistered: boolean }`.
+ * - `alreadyRegistered === false` means the user was freshly registered.
+ * - `alreadyRegistered === true` means they were already registered (contract returned false).
+ */
+export async function submitRegisterTransaction(walletAddress) {
+    if (!CAMPAIGN_CONTRACT_ID) {
+        throw new Error('Set VITE_CAMPAIGN_CONTRACT_ID before registering.');
+    }
+
+    const server = new rpc.Server(SOROBAN_RPC_URL);
+    const sourceAccount = await server.getAccount(walletAddress);
+    const contract = new Contract(CAMPAIGN_CONTRACT_ID);
+
+    /* 1. Build */
+    const tx = new TransactionBuilder(sourceAccount, {
+        fee: BASE_FEE,
+        networkPassphrase: NETWORK_PASSPHRASE,
+    })
+        .addOperation(
+            contract.call(
+                'register',
+                nativeToScVal(Address.fromString(walletAddress)),
+            ),
+        )
+        .setTimeout(30)
+        .build();
+
+    /* 2. Simulate & prepare */
+    const preparedTx = await server.prepareTransaction(tx);
+
+    /* 3. Sign with Freighter */
+    const freighterApi = getFreighterApi();
+    const signResult = await freighterApi.signTransaction(preparedTx.toXDR(), {
+        networkPassphrase: NETWORK_PASSPHRASE,
+        address: walletAddress,
+    });
+
+    if (signResult.error) throw new Error(signResult.error);
+
+    /* 4. Re-construct signed transaction */
+    const signedTx = TransactionBuilder.fromXDR(
+        signResult.signedTxXdr,
+        NETWORK_PASSPHRASE,
+    );
+
+    /* 5. Submit */
+    const sendResult = await server.sendTransaction(signedTx);
+    if (sendResult.status === 'ERROR') {
+        throw new Error(
+            sendResult.errorResult?.toString() || 'Registration transaction failed.',
+        );
+    }
+
+    /* 6. Poll until finalised */
+    let getResult;
+    for (let i = 0; i < TX_POLL_MAX_ATTEMPTS; i++) {
+        // eslint-disable-next-line no-await-in-loop
+        getResult = await server.getTransaction(sendResult.hash);
+        if (getResult.status !== 'NOT_FOUND') break;
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, TX_POLL_INTERVAL_MS));
+    }
+
+    if (!getResult || getResult.status === 'NOT_FOUND') {
+        throw new Error(
+            'Registration transaction was submitted but could not be confirmed in time.',
+        );
+    }
+
+    if (getResult.status === 'FAILED') {
+        throw new Error('Registration transaction failed on-chain.');
+    }
+
+    // Contract returns true for a fresh registration, false if already registered.
+    const wasNew = getResult.returnValue
+        ? scValToNative(getResult.returnValue)
+        : true;
+
+    return { hash: sendResult.hash, alreadyRegistered: !wasNew };
 }

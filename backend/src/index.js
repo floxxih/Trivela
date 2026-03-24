@@ -6,6 +6,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import requireApiKey from './middleware/apiKeyAuth.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -68,10 +69,45 @@ function getCampaignById(req, res) {
   res.json(campaign);
 }
 
+function createCampaign(req, res) {
+  const { name, description, rewardPerAction } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  const campaign = {
+    id: String(campaigns.length + 1),
+    name,
+    description: description || '',
+    active: true,
+    rewardPerAction: rewardPerAction ?? 0,
+    createdAt: new Date().toISOString(),
+  };
+  campaigns.push(campaign);
+  res.status(201).json(campaign);
+}
+
+function updateCampaign(req, res) {
+  const campaign = campaigns.find((c) => c.id === req.params.id);
+  if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+  Object.assign(campaign, req.body, { id: campaign.id });
+  res.json(campaign);
+}
+
+function deleteCampaign(req, res) {
+  const idx = campaigns.findIndex((c) => c.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Campaign not found' });
+  campaigns.splice(idx, 1);
+  res.status(204).end();
+}
+
 function registerApiRoutes(prefix) {
+  // Read endpoints — open
   app.get(prefix, apiInfo);
   app.get(`${prefix}/campaigns`, listCampaigns);
   app.get(`${prefix}/campaigns/:id`, getCampaignById);
+
+  // Write endpoints — protected by optional API key
+  app.post(`${prefix}/campaigns`, requireApiKey, createCampaign);
+  app.put(`${prefix}/campaigns/:id`, requireApiKey, updateCampaign);
+  app.delete(`${prefix}/campaigns/:id`, requireApiKey, deleteCampaign);
 }
 
 registerApiRoutes(API_V1_PREFIX);
