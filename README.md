@@ -90,7 +90,7 @@ cp backend/.env.example backend/.env
 npm run dev:backend
 ```
 
-API: http://localhost:3001 (health: http://localhost:3001/health).
+API: http://localhost:3001 (health: http://localhost:3001/health, v1: http://localhost:3001/api/v1).
 
 ### 4. Run frontend
 
@@ -98,7 +98,7 @@ API: http://localhost:3001 (health: http://localhost:3001/health).
 npm run dev:frontend
 ```
 
-App: http://localhost:5173 (proxies `/api` to the backend).
+App: http://localhost:5173 (proxies `/api` and `/api/v1` to the backend).
 
 ---
 
