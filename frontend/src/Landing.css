@@ -162,6 +162,18 @@
   text-decoration: none;
 }
 
+.btn-button {
+  border: 0;
+  cursor: pointer;
+}
+
+.btn-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+  box-shadow: none;
+}
+
 .btn:hover {
   text-decoration: none;
 }
@@ -217,6 +229,93 @@
   color: var(--text-muted);
   margin: 0 0 2.5rem;
   font-size: 1rem;
+}
+
+/* ---- Rewards ---- */
+.rewards-panel {
+  padding-top: 0;
+}
+
+.rewards-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.8fr);
+  gap: 1.5rem;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(88, 166, 255, 0.12), rgba(22, 27, 34, 0.96));
+  border: 1px solid rgba(88, 166, 255, 0.25);
+  border-radius: 20px;
+  padding: 1.75rem;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+}
+
+.rewards-eyebrow {
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.78rem;
+  color: var(--accent-hover);
+}
+
+.rewards-title {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.rewards-copy {
+  margin: 0;
+  color: var(--text-muted);
+  max-width: 46rem;
+}
+
+.rewards-balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-self: end;
+  background: rgba(6, 9, 15, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  min-width: 220px;
+}
+
+.rewards-balance-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.rewards-balance strong {
+  margin-top: 0.35rem;
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  line-height: 1;
+}
+
+.rewards-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.rewards-wallet,
+.rewards-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.rewards-wallet {
+  color: var(--text-muted);
+}
+
+.rewards-wallet span {
+  color: var(--text);
+  word-break: break-all;
+}
+
+.rewards-error {
+  color: #ff9b9b;
 }
 
 /* ---- Features ---- */
@@ -449,5 +548,14 @@
 
   .how-grid {
     grid-template-columns: 1fr;
+  }
+
+  .rewards-card {
+    grid-template-columns: 1fr;
+  }
+
+  .rewards-balance {
+    justify-self: stretch;
+    min-width: 0;
   }
 }
