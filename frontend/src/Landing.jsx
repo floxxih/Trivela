@@ -11,6 +11,8 @@ import {
 } from '@stellar/stellar-sdk';
 import './Landing.css';
 
+import RegisterCampaign from './RegisterCampaign';
+
 const GITHUB_REPO = 'https://github.com/FinesseStudioLab/Trivela';
 const GITHUB_ISSUES = 'https://github.com/FinesseStudioLab/Trivela/issues';
 const STELLAR_DOCS = 'https://developers.stellar.org/docs';
@@ -327,6 +329,10 @@ export default function Landing() {
               </li>
             ))}
           </ul>
+
+          {walletAddress && (
+            <RegisterCampaign walletAddress={walletAddress} />
+          )}
         </section>
       )}
 
