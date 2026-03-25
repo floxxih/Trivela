@@ -5,7 +5,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contractmeta, contracterror, symbol_short, Env, Symbol};
+use soroban_sdk::{contract, contracterror, contractimpl, contractmeta, symbol_short, Env, Symbol};
 
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -13,6 +13,7 @@ use soroban_sdk::{contract, contractimpl, contractmeta, contracterror, symbol_sh
 pub enum Error {
     Overflow = 1,
     InsufficientBalance = 2,
+    Unauthorized = 3,
 }
 
 contractmeta!(
@@ -36,7 +37,9 @@ impl RewardsContract {
         name: Symbol,
         symbol: Symbol,
     ) -> Result<(), Error> {
-        env.storage().instance().set(&symbol_short!("admin"), &admin);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("admin"), &admin);
         env.storage().instance().set(&CLAIMED, &0u64);
         env.storage().instance().set(&METADATA, &(name, symbol));
         Ok(())
@@ -52,10 +55,7 @@ impl RewardsContract {
 
     /// Get the current points balance for a user.
     pub fn balance(env: Env, user: soroban_sdk::Address) -> u64 {
-        env.storage()
-            .instance()
-            .get(&(BALANCE, user))
-            .unwrap_or(0)
+        env.storage().instance().get(&(BALANCE, user)).unwrap_or(0)
     }
 
     /// Credit points to a user (admin or authorized campaign only).
@@ -79,10 +79,14 @@ impl RewardsContract {
         user.require_auth();
         let key = (BALANCE, user.clone());
         let current: u64 = env.storage().instance().get(&key).unwrap_or(0);
-        let new_balance = current.checked_sub(amount).ok_or(Error::InsufficientBalance)?;
+        let new_balance = current
+            .checked_sub(amount)
+            .ok_or(Error::InsufficientBalance)?;
         env.storage().instance().set(&key, &new_balance);
         let total: u64 = env.storage().instance().get(&CLAIMED).unwrap_or(0);
-        env.storage().instance().set(&CLAIMED, &total.saturating_add(amount));
+        env.storage()
+            .instance()
+            .set(&CLAIMED, &total.saturating_add(amount));
         env.storage().instance().extend_ttl(50, 100);
         Ok(new_balance)
     }
@@ -90,6 +94,42 @@ impl RewardsContract {
     /// Get total claimed rewards (global stats).
     pub fn total_claimed(env: Env) -> u64 {
         env.storage().instance().get(&CLAIMED).unwrap_or(0)
+    }
+
+    /// Transfer points from one user to another (admin only).
+    pub fn admin_transfer(
+        env: Env,
+        admin: soroban_sdk::Address,
+        from: soroban_sdk::Address,
+        to: soroban_sdk::Address,
+        amount: u64,
+    ) -> Result<(), Error> {
+        admin.require_auth();
+        let stored_admin: soroban_sdk::Address = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("admin"))
+            .unwrap();
+        if stored_admin != admin {
+            return Err(Error::Unauthorized);
+        }
+
+        // Debit source
+        let from_key = (BALANCE, from.clone());
+        let from_balance: u64 = env.storage().instance().get(&from_key).unwrap_or(0);
+        let new_from_balance = from_balance
+            .checked_sub(amount)
+            .ok_or(Error::InsufficientBalance)?;
+        env.storage().instance().set(&from_key, &new_from_balance);
+
+        // Credit destination
+        let to_key = (BALANCE, to.clone());
+        let to_balance: u64 = env.storage().instance().get(&to_key).unwrap_or(0);
+        let new_to_balance = to_balance.checked_add(amount).ok_or(Error::Overflow)?;
+        env.storage().instance().set(&to_key, &new_to_balance);
+
+        env.storage().instance().extend_ttl(50, 100);
+        Ok(())
     }
 }
 
