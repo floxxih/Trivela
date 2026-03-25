@@ -7,6 +7,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import requireApiKey from './middleware/apiKeyAuth.js';
+import { paginateItems } from './pagination.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -59,8 +60,8 @@ function apiInfo(req, res) {
   });
 }
 
-function listCampaigns(_req, res) {
-  res.json(campaigns);
+function listCampaigns(req, res) {
+  res.json(paginateItems(campaigns, req.query));
 }
 
 function getCampaignById(req, res) {

@@ -11,13 +11,31 @@ npm run dev
 
 Open `http://localhost:5173`. The dev server proxies `/api`, `/api/v1`, and `/health` to the backend on port `3001`.
 
+## Storybook
+
+Run Storybook from the frontend workspace:
+
+```bash
+npm run storybook
+```
+
+Build the static Storybook bundle with:
+
+```bash
+npm run build-storybook
+```
+
 ## Env
 
 - `VITE_API_URL`: Base URL for API requests. Leave empty to use the local Vite proxy.
+- `VITE_SOROBAN_RPC_URL`: Soroban RPC endpoint for read/write contract calls.
+- `VITE_REWARDS_CONTRACT_ID`: Rewards contract ID for balance and claim flows.
+- `VITE_CAMPAIGN_CONTRACT_ID`: Campaign contract ID for participant registration.
+- `VITE_STELLAR_NETWORK_PASSPHRASE`: Stellar network passphrase. Defaults to testnet.
 
 ## API routing
 
-The frontend now targets `/api/v1/*` routes by default. Legacy `/api/*` routes are still supported by the backend for backward compatibility, but new integrations should use the v1 prefix.
+The frontend now targets `/api/v1/*` routes by default. Campaign loading uses the paginated response shape from `GET /api/v1/campaigns?page=1&limit=6`. Legacy `/api/*` routes are still supported by the backend for backward compatibility, but new integrations should use the v1 prefix.
 
 ## Stellar integration
 

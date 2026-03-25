@@ -51,6 +51,37 @@ Preferred routes:
 - `GET /api/v1/campaigns`
 - `GET /api/v1/campaigns/:id`
 
+### Campaign pagination
+
+`GET /api/v1/campaigns` supports either `page`/`limit` or `offset`/`limit`.
+
+Example:
+
+```text
+GET /api/v1/campaigns?page=2&limit=10
+GET /api/v1/campaigns?offset=20&limit=10
+```
+
+Response shape:
+
+```json
+{
+  "data": [],
+  "pagination": {
+    "total": 0,
+    "count": 0,
+    "page": 1,
+    "limit": 10,
+    "offset": 0,
+    "totalPages": 0,
+    "hasPreviousPage": false,
+    "hasNextPage": false,
+    "previousPage": null,
+    "nextPage": null
+  }
+}
+```
+
 Backward-compatible legacy routes remain available under `/api/*` for now:
 
 - `GET /api`
