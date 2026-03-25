@@ -16,13 +16,13 @@ pub enum Error {
 }
 
 contractmeta!(
-    name = "trivela-rewards",
-    version = "0.1.0",
-    description = "Trivela campaign rewards and points"
+    key = "Description",
+    val = "Trivela campaign rewards and points"
 );
 
 const BALANCE: Symbol = symbol_short!("balance");
-const TOTAL_CLAIMED: Symbol = symbol_short!("total_claimed");
+const CLAIMED: Symbol = symbol_short!("claimed");
+const METADATA: Symbol = symbol_short!("metadata");
 
 #[contract]
 pub struct RewardsContract;
@@ -30,10 +30,24 @@ pub struct RewardsContract;
 #[contractimpl]
 impl RewardsContract {
     /// Initialize the rewards contract (admin).
-    pub fn initialize(env: Env, admin: soroban_sdk::Address) -> Result<(), Error> {
+    pub fn initialize(
+        env: Env,
+        admin: soroban_sdk::Address,
+        name: Symbol,
+        symbol: Symbol,
+    ) -> Result<(), Error> {
         env.storage().instance().set(&symbol_short!("admin"), &admin);
-        env.storage().instance().set(&TOTAL_CLAIMED, &0u64);
+        env.storage().instance().set(&CLAIMED, &0u64);
+        env.storage().instance().set(&METADATA, &(name, symbol));
         Ok(())
+    }
+
+    /// Get contract metadata (name and symbol).
+    pub fn metadata(env: Env) -> (Symbol, Symbol) {
+        env.storage()
+            .instance()
+            .get(&METADATA)
+            .unwrap_or((symbol_short!("Trivela"), symbol_short!("TVL")))
     }
 
     /// Get the current points balance for a user.
@@ -67,15 +81,15 @@ impl RewardsContract {
         let current: u64 = env.storage().instance().get(&key).unwrap_or(0);
         let new_balance = current.checked_sub(amount).ok_or(Error::InsufficientBalance)?;
         env.storage().instance().set(&key, &new_balance);
-        let total: u64 = env.storage().instance().get(&TOTAL_CLAIMED).unwrap_or(0);
-        env.storage().instance().set(&TOTAL_CLAIMED, &total.saturating_add(amount));
+        let total: u64 = env.storage().instance().get(&CLAIMED).unwrap_or(0);
+        env.storage().instance().set(&CLAIMED, &total.saturating_add(amount));
         env.storage().instance().extend_ttl(50, 100);
         Ok(new_balance)
     }
 
     /// Get total claimed rewards (global stats).
     pub fn total_claimed(env: Env) -> u64 {
-        env.storage().instance().get(&TOTAL_CLAIMED).unwrap_or(0)
+        env.storage().instance().get(&CLAIMED).unwrap_or(0)
     }
 }
 

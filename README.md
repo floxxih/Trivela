@@ -66,22 +66,44 @@ npm install
 
 ### 2. Build and run contracts (Soroban)
 
-```bash
-# Build both contracts
-cd contracts/rewards && stellar contract build
-cd ../campaign && stellar contract build
+To build the smart contracts, ensure you have the [Stellar CLI](https://developers.stellar.org/docs/build/smart-contracts/getting-started/setup#install-the-stellar-cli) installed.
 
-# Or with cargo (no Stellar CLI)
+```bash
+# Build both contracts using Stellar CLI
+stellar contract build
+
+# Alternatively, build specific packages with cargo
 cargo build --target wasm32-unknown-unknown --release -p trivela-rewards-contract
 cargo build --target wasm32-unknown-unknown --release -p trivela-campaign-contract
 ```
 
-Deploy to testnet (after [configuring an identity](https://developers.stellar.org/docs/build/smart-contracts/getting-started/setup#configure-an-identity)):
+#### Deploying to Testnet
 
-```bash
-stellar contract deploy --wasm target/wasm32-unknown-unknown/release/trivela_rewards_contract.wasm --source alice --network testnet
-stellar contract deploy --wasm target/wasm32-unknown-unknown/release/trivela_campaign_contract.wasm --source alice --network testnet
-```
+1. **Configure an Identity**:
+   ```bash
+   stellar keys generate alice --network testnet
+   ```
+
+2. **Deploy the WASM**:
+   ```bash
+   # Deploy Rewards Contract
+   stellar contract deploy \
+     --wasm target/wasm32-unknown-unknown/release/trivela_rewards_contract.wasm \
+     --source alice --network testnet
+
+   # Deploy Campaign Contract
+   stellar contract deploy \
+     --wasm target/wasm32-unknown-unknown/release/trivela_campaign_contract.wasm \
+     --source alice --network testnet
+   ```
+
+3. **Initialize the Contracts**:
+   After deployment, you will receive a Contract ID. Use it to call the `initialize` function:
+   ```bash
+   stellar contract invoke --id <CONTRACT_ID> --source alice --network testnet -- \
+     initialize --admin alice --name "Trivela Rewards" --symbol "TVL"
+   ```
+
 
 ### 3. Run backend
 

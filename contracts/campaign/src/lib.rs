@@ -12,17 +12,19 @@ use soroban_sdk::{contract, contractimpl, contractmeta, contracterror, symbol_sh
 #[repr(u32)]
 pub enum Error {
     Unauthorized = 100,
+    OutsideTimeWindow = 101,
 }
 
 contractmeta!(
-    name = "trivela-campaign",
-    version = "0.1.0",
-    description = "Trivela campaign configuration"
+    key = "Description",
+    val = "Trivela campaign configuration"
 );
 
 const ADMIN: Symbol = symbol_short!("admin");
 const CAMPAIGN_ACTIVE: Symbol = symbol_short!("active");
-const PARTICIPANT: Symbol = symbol_short!("participant");
+const PARTICIPANT: Symbol = symbol_short!("partic");
+const START_TIME: Symbol = symbol_short!("start");
+const END_TIME: Symbol = symbol_short!("end");
 
 #[contract]
 pub struct CampaignContract;
@@ -33,6 +35,25 @@ impl CampaignContract {
     pub fn initialize(env: Env, admin: soroban_sdk::Address) -> Result<(), Error> {
         env.storage().instance().set(&ADMIN, &admin);
         env.storage().instance().set(&CAMPAIGN_ACTIVE, &true);
+        env.storage().instance().set(&START_TIME, &0u64);
+        env.storage().instance().set(&END_TIME, &u64::MAX);
+        Ok(())
+    }
+
+    /// Set registration time window (admin only).
+    pub fn set_window(
+        env: Env,
+        admin: soroban_sdk::Address,
+        start: u64,
+        end: u64,
+    ) -> Result<(), Error> {
+        admin.require_auth();
+        let stored: soroban_sdk::Address = env.storage().instance().get(&ADMIN).unwrap();
+        if stored != admin {
+            return Err(Error::Unauthorized);
+        }
+        env.storage().instance().set(&START_TIME, &start);
+        env.storage().instance().set(&END_TIME, &end);
         Ok(())
     }
 
@@ -50,6 +71,15 @@ impl CampaignContract {
     /// Register a participant (authorized caller).
     pub fn register(env: Env, participant: soroban_sdk::Address) -> Result<bool, Error> {
         participant.require_auth();
+
+        let now = env.ledger().timestamp();
+        let start: u64 = env.storage().instance().get(&START_TIME).unwrap_or(0);
+        let end: u64 = env.storage().instance().get(&END_TIME).unwrap_or(u64::MAX);
+
+        if now < start || now > end {
+            return Err(Error::OutsideTimeWindow);
+        }
+
         let key = (PARTICIPANT, participant.clone());
         if env.storage().instance().get::<_, bool>(&key).unwrap_or(false) {
             return Ok(false);
