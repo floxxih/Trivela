@@ -55,11 +55,14 @@ fn test_metadata() {
 
 #[test]
 fn test_claim_more_than_balance_errors() {
+fn test_batch_credit() {
     let env = Env::default();
     let contract_id = env.register_contract(None, RewardsContract);
     let client = RewardsContractClient::new(&env, &contract_id);
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
+    let user_a = Address::generate(&env);
+    let user_b = Address::generate(&env);
     client.initialize(
         &admin,
         &symbol_short!("Trivela"),
@@ -74,11 +77,27 @@ fn test_claim_more_than_balance_errors() {
 
 #[test]
 fn test_credit_overflow_errors() {
+    let recipients = soroban_sdk::vec![
+        &env,
+        (user_a.clone(), 50u64),
+        (user_b.clone(), 75u64),
+    ];
+
+    client.batch_credit(&admin, &recipients);
+
+    assert_eq!(client.balance(&user_a), 50);
+    assert_eq!(client.balance(&user_b), 75);
+}
+
+#[test]
+fn test_batch_credit_is_atomic_on_overflow() {
     let env = Env::default();
     let contract_id = env.register_contract(None, RewardsContract);
     let client = RewardsContractClient::new(&env, &contract_id);
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
+    let user_a = Address::generate(&env);
+    let user_b = Address::generate(&env);
     client.initialize(
         &admin,
         &symbol_short!("Trivela"),
@@ -103,4 +122,17 @@ fn test_uninitialized_access_returns_defaults() {
     assert_eq!(client.metadata(), (symbol_short!("Trivela"), symbol_short!("TVL")));
     assert_eq!(client.balance(&user), 0);
     assert_eq!(client.total_claimed(), 0);
+    client.credit(&admin, &user_a, &10);
+    client.credit(&admin, &user_b, &u64::MAX);
+
+    let recipients = soroban_sdk::vec![
+        &env,
+        (user_a.clone(), 15u64),
+        (user_b.clone(), 1u64),
+    ];
+
+    let result = client.try_batch_credit(&admin, &recipients);
+    assert!(result.is_err());
+    assert_eq!(client.balance(&user_a), 10);
+    assert_eq!(client.balance(&user_b), u64::MAX);
 }
