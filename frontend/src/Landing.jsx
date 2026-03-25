@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react';
 import {
+  apiUrl,
+  CAMPAIGN_CONTRACT_ID,
+  REWARDS_CONTRACT_ID,
+  SOROBAN_RPC_URL,
+  getCampaignContract,
+  getRewardsContract,
+} from './config';
+import {
   getWalletAddress,
   fetchRewardsBalance,
   formatPoints,
   normalizeError,
 } from './stellar';
 import ClaimRewards from './ClaimRewards';
-import './Landing.css';
-
 import RegisterCampaign from './RegisterCampaign';
+import './Landing.css';
 
 const GITHUB_REPO = 'https://github.com/FinesseStudioLab/Trivela';
 const GITHUB_ISSUES = 'https://github.com/FinesseStudioLab/Trivela/issues';
@@ -22,10 +29,11 @@ export default function Landing() {
   const [pointsError, setPointsError] = useState('');
   const [isWalletLoading, setIsWalletLoading] = useState(false);
   const [isPointsLoading, setIsPointsLoading] = useState(false);
+  const rewardsContract = getRewardsContract();
+  const campaignContract = getCampaignContract();
 
   useEffect(() => {
-    const api = import.meta.env.VITE_API_URL || '';
-    fetch(`${api}/api/v1/campaigns`)
+    fetch(apiUrl('/api/v1/campaigns'))
       .then((r) => r.json())
       .then(setCampaigns)
       .catch(() => setCampaigns([]));
@@ -168,7 +176,7 @@ export default function Landing() {
       </section>
 
       <section className="section features">
-        <h2 className="section-title">What’s in the stack</h2>
+        <h2 className="section-title">What&apos;s in the stack</h2>
         <p className="section-subtitle">Soroban contracts, API, and frontend — all open for contribution.</p>
         <div className="features-grid">
           <article className="feature-card">
@@ -191,6 +199,21 @@ export default function Landing() {
             </div>
             <h3>React frontend</h3>
             <p>Vite + Stellar SDK. Landing, campaign list, and hooks for wallet connect and contract calls.</p>
+          </article>
+        </div>
+        <div className="config-grid">
+          <article className="config-card">
+            <h3>Environment-driven wiring</h3>
+            <p>
+              Frontend API and Soroban targets are configured through Vite env values so each deployment
+              can point at its own backend, rewards contract, and campaign contract without code changes.
+            </p>
+            <ul className="config-list">
+              <li><strong>Campaigns API:</strong> {apiUrl('/api/v1/campaigns')}</li>
+              <li><strong>Soroban RPC:</strong> {SOROBAN_RPC_URL}</li>
+              <li><strong>Rewards contract:</strong> {rewardsContract ? REWARDS_CONTRACT_ID : 'Not configured'}</li>
+              <li><strong>Campaign contract:</strong> {campaignContract ? CAMPAIGN_CONTRACT_ID : 'Not configured'}</li>
+            </ul>
           </article>
         </div>
       </section>
