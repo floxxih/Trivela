@@ -14,6 +14,7 @@ pub enum Error {
     Overflow = 1,
     InsufficientBalance = 2,
     Unauthorized = 3,
+    ContractPaused = 4,
 }
 
 contractmeta!(
@@ -24,6 +25,7 @@ contractmeta!(
 const BALANCE: Symbol = symbol_short!("balance");
 const CLAIMED: Symbol = symbol_short!("claimed");
 const METADATA: Symbol = symbol_short!("metadata");
+const PAUSED: Symbol = symbol_short!("paused");
 
 #[contract]
 pub struct RewardsContract;
@@ -42,6 +44,7 @@ impl RewardsContract {
             .set(&symbol_short!("admin"), &admin);
         env.storage().instance().set(&CLAIMED, &0u64);
         env.storage().instance().set(&METADATA, &(name, symbol));
+        env.storage().instance().set(&PAUSED, &false);
         Ok(())
     }
 
@@ -66,6 +69,13 @@ impl RewardsContract {
         amount: u64,
     ) -> Result<u64, Error> {
         from.require_auth();
+
+        // Check if contract is paused
+        let paused: bool = env.storage().instance().get(&PAUSED).unwrap_or(false);
+        if paused {
+            return Err(Error::ContractPaused);
+        }
+
         let key = (BALANCE, user.clone());
         let current: u64 = env.storage().instance().get(&key).unwrap_or(0);
         let new_balance = current.checked_add(amount).ok_or(Error::Overflow)?;
@@ -74,9 +84,41 @@ impl RewardsContract {
         Ok(new_balance)
     }
 
+    /// Credit points to multiple users in one call.
+    pub fn batch_credit(
+        env: Env,
+        from: soroban_sdk::Address,
+        recipients: Vec<(soroban_sdk::Address, u64)>,
+    ) -> Result<(), Error> {
+        from.require_auth();
+
+        let mut staged = Vec::new(&env);
+
+        for (user, amount) in recipients.iter() {
+            let key = (BALANCE, user.clone());
+            let current: u64 = env.storage().instance().get(&key).unwrap_or(0);
+            let new_balance = current.checked_add(amount).ok_or(Error::Overflow)?;
+            staged.push_back((user, new_balance));
+        }
+
+        for (user, new_balance) in staged.iter() {
+            env.storage().instance().set(&(BALANCE, user), &new_balance);
+        }
+
+        env.storage().instance().extend_ttl(50, 100);
+        Ok(())
+    }
+
     /// Claim rewards for a user (reduces balance).
     pub fn claim(env: Env, user: soroban_sdk::Address, amount: u64) -> Result<u64, Error> {
         user.require_auth();
+
+        // Check if contract is paused
+        let paused: bool = env.storage().instance().get(&PAUSED).unwrap_or(false);
+        if paused {
+            return Err(Error::ContractPaused);
+        }
+
         let key = (BALANCE, user.clone());
         let current: u64 = env.storage().instance().get(&key).unwrap_or(0);
         let new_balance = current
@@ -104,6 +146,8 @@ impl RewardsContract {
         to: soroban_sdk::Address,
         amount: u64,
     ) -> Result<(), Error> {
+    /// Pause the contract (admin only). Blocks credit and claim operations.
+    pub fn set_paused(env: Env, admin: soroban_sdk::Address, paused: bool) -> Result<(), Error> {
         admin.require_auth();
         let stored_admin: soroban_sdk::Address = env
             .storage()
@@ -130,6 +174,14 @@ impl RewardsContract {
 
         env.storage().instance().extend_ttl(50, 100);
         Ok(())
+    }
+        env.storage().instance().set(&PAUSED, &paused);
+        Ok(())
+    }
+
+    /// Check if contract is paused.
+    pub fn is_paused(env: Env) -> bool {
+        env.storage().instance().get(&PAUSED).unwrap_or(false)
     }
 }
 

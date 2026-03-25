@@ -57,3 +57,17 @@ fn test_time_window_validation() {
     let result = client.try_register(&participant2);
     assert!(result.is_err());
 }
+
+#[test]
+fn test_register_participant_twice_returns_false() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, CampaignContract);
+    let client = CampaignContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let participant = Address::generate(&env);
+    client.initialize(&admin);
+
+    env.mock_all_auths();
+    assert!(client.register(&participant));
+    assert!(!client.register(&participant));
+}
