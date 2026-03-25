@@ -10,7 +10,13 @@ const NAV_LINKS = [
   { href: 'https://developers.stellar.org/docs', label: 'Stellar' },
 ];
 
-export default function Header({ theme = 'dark', onToggleTheme, walletAddress = '' }) {
+export default function Header({
+  theme = 'dark',
+  onToggleTheme,
+  walletAddress = '',
+  walletBalance = '',
+  isWalletBalanceLoading = false,
+}) {
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
 
   return (
@@ -38,6 +44,15 @@ export default function Header({ theme = 'dark', onToggleTheme, walletAddress = 
               </p>
             )}
 
+            {walletAddress && (
+              <p className="nav-wallet nav-wallet-balance" aria-live="polite">
+                <span className="nav-wallet-label">Testnet balance</span>
+                <span className="nav-wallet-value">
+                  {isWalletBalanceLoading ? 'Loading…' : walletBalance || '0 XLM'}
+                </span>
+              </p>
+            )}
+
             <button
               type="button"
               className="btn btn-secondary btn-button theme-toggle"
@@ -57,4 +72,3 @@ export default function Header({ theme = 'dark', onToggleTheme, walletAddress = 
     </header>
   );
 }
-

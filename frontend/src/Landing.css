@@ -102,6 +102,11 @@
   color: var(--text);
 }
 
+.nav-wallet-balance {
+  min-width: 154px;
+  justify-content: space-between;
+}
+
 .nav-wallet-label {
   font-size: 0.78rem;
   text-transform: uppercase;

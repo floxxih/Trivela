@@ -14,6 +14,7 @@ pub enum Error {
     Unauthorized = 100,
     OutsideTimeWindow = 101,
     CapacityReached = 102,
+    CampaignInactive = 102,
 }
 
 contractmeta!(key = "Description", val = "Trivela campaign configuration");
@@ -84,6 +85,12 @@ impl CampaignContract {
     pub fn register(env: Env, participant: soroban_sdk::Address) -> Result<bool, Error> {
         participant.require_auth();
 
+        // Check if campaign is active
+        let active: bool = env.storage().instance().get(&CAMPAIGN_ACTIVE).unwrap_or(false);
+        if !active {
+            return Err(Error::CampaignInactive);
+        }
+
         let now = env.ledger().timestamp();
         let start: u64 = env.storage().instance().get(&START_TIME).unwrap_or(0);
         let end: u64 = env.storage().instance().get(&END_TIME).unwrap_or(u64::MAX);
@@ -127,6 +134,20 @@ impl CampaignContract {
             .instance()
             .set(&PARTICIPANT_COUNT, &(count + 1));
 
+        env.storage().instance().extend_ttl(50, 100);
+        Ok(true)
+    }
+
+        let key = (PARTICIPANT, participant.clone());
+        if env
+            .storage()
+            .instance()
+            .get::<_, bool>(&key)
+            .unwrap_or(false)
+        {
+            return Ok(false);
+        }
+        env.storage().instance().set(&key, &true);
         env.storage().instance().extend_ttl(50, 100);
         Ok(true)
     }
