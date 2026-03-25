@@ -5,7 +5,9 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contractmeta, contracterror, symbol_short, Env, Symbol};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, contractmeta, symbol_short, Env, Symbol, Vec,
+};
 
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -72,6 +74,31 @@ impl RewardsContract {
         env.storage().instance().set(&key, &new_balance);
         env.storage().instance().extend_ttl(50, 100);
         Ok(new_balance)
+    }
+
+    /// Credit points to multiple users in one call.
+    pub fn batch_credit(
+        env: Env,
+        from: soroban_sdk::Address,
+        recipients: Vec<(soroban_sdk::Address, u64)>,
+    ) -> Result<(), Error> {
+        from.require_auth();
+
+        let mut staged = Vec::new(&env);
+
+        for (user, amount) in recipients.iter() {
+            let key = (BALANCE, user.clone());
+            let current: u64 = env.storage().instance().get(&key).unwrap_or(0);
+            let new_balance = current.checked_add(amount).ok_or(Error::Overflow)?;
+            staged.push_back((user, new_balance));
+        }
+
+        for (user, new_balance) in staged.iter() {
+            env.storage().instance().set(&(BALANCE, user), &new_balance);
+        }
+
+        env.storage().instance().extend_ttl(50, 100);
+        Ok(())
     }
 
     /// Claim rewards for a user (reduces balance).
