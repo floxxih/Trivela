@@ -5,9 +5,7 @@
 
 #![no_std]
 
-use soroban_sdk::{
-    contract, contracterror, contractimpl, contractmeta, symbol_short, Env, Symbol, Vec,
-};
+use soroban_sdk::{contract, contracterror, contractimpl, contractmeta, symbol_short, Env, Symbol};
 
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -140,6 +138,14 @@ impl RewardsContract {
         env.storage().instance().get(&CLAIMED).unwrap_or(0)
     }
 
+    /// Transfer points from one user to another (admin only).
+    pub fn admin_transfer(
+        env: Env,
+        admin: soroban_sdk::Address,
+        from: soroban_sdk::Address,
+        to: soroban_sdk::Address,
+        amount: u64,
+    ) -> Result<(), Error> {
     /// Pause the contract (admin only). Blocks credit and claim operations.
     pub fn set_paused(env: Env, admin: soroban_sdk::Address, paused: bool) -> Result<(), Error> {
         admin.require_auth();
@@ -151,6 +157,24 @@ impl RewardsContract {
         if stored_admin != admin {
             return Err(Error::Unauthorized);
         }
+
+        // Debit source
+        let from_key = (BALANCE, from.clone());
+        let from_balance: u64 = env.storage().instance().get(&from_key).unwrap_or(0);
+        let new_from_balance = from_balance
+            .checked_sub(amount)
+            .ok_or(Error::InsufficientBalance)?;
+        env.storage().instance().set(&from_key, &new_from_balance);
+
+        // Credit destination
+        let to_key = (BALANCE, to.clone());
+        let to_balance: u64 = env.storage().instance().get(&to_key).unwrap_or(0);
+        let new_to_balance = to_balance.checked_add(amount).ok_or(Error::Overflow)?;
+        env.storage().instance().set(&to_key, &new_to_balance);
+
+        env.storage().instance().extend_ttl(50, 100);
+        Ok(())
+    }
         env.storage().instance().set(&PAUSED, &paused);
         Ok(())
     }
