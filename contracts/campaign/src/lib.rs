@@ -13,6 +13,7 @@ use soroban_sdk::{contract, contracterror, contractimpl, contractmeta, symbol_sh
 pub enum Error {
     Unauthorized = 100,
     OutsideTimeWindow = 101,
+    CapacityReached = 102,
     CampaignInactive = 102,
 }
 
@@ -23,6 +24,8 @@ const CAMPAIGN_ACTIVE: Symbol = symbol_short!("active");
 const PARTICIPANT: Symbol = symbol_short!("partic");
 const START_TIME: Symbol = symbol_short!("start");
 const END_TIME: Symbol = symbol_short!("end");
+const MAX_CAP: Symbol = symbol_short!("maxcap");
+const PARTICIPANT_COUNT: Symbol = symbol_short!("count");
 
 #[contract]
 pub struct CampaignContract;
@@ -35,6 +38,7 @@ impl CampaignContract {
         env.storage().instance().set(&CAMPAIGN_ACTIVE, &true);
         env.storage().instance().set(&START_TIME, &0u64);
         env.storage().instance().set(&END_TIME, &u64::MAX);
+        env.storage().instance().set(&PARTICIPANT_COUNT, &0u64);
         Ok(())
     }
 
@@ -66,6 +70,17 @@ impl CampaignContract {
         Ok(())
     }
 
+    /// Set maximum participant cap (admin only). Set to 0 for unlimited.
+    pub fn set_max_cap(env: Env, admin: soroban_sdk::Address, max_cap: u64) -> Result<(), Error> {
+        admin.require_auth();
+        let stored: soroban_sdk::Address = env.storage().instance().get(&ADMIN).unwrap();
+        if stored != admin {
+            return Err(Error::Unauthorized);
+        }
+        env.storage().instance().set(&MAX_CAP, &max_cap);
+        Ok(())
+    }
+
     /// Register a participant (authorized caller).
     pub fn register(env: Env, participant: soroban_sdk::Address) -> Result<bool, Error> {
         participant.require_auth();
@@ -85,10 +100,40 @@ impl CampaignContract {
         }
 
         let key = (PARTICIPANT, participant.clone());
-        if env.storage().instance().get::<_, bool>(&key).unwrap_or(false) {
+        if env
+            .storage()
+            .instance()
+            .get::<_, bool>(&key)
+            .unwrap_or(false)
+        {
             return Ok(false);
         }
+
+        // Check capacity if max_cap is set
+        let max_cap: u64 = env.storage().instance().get(&MAX_CAP).unwrap_or(0);
+        if max_cap > 0 {
+            let count: u64 = env
+                .storage()
+                .instance()
+                .get(&PARTICIPANT_COUNT)
+                .unwrap_or(0);
+            if count >= max_cap {
+                return Err(Error::CapacityReached);
+            }
+        }
+
         env.storage().instance().set(&key, &true);
+
+        // Increment participant count
+        let count: u64 = env
+            .storage()
+            .instance()
+            .get(&PARTICIPANT_COUNT)
+            .unwrap_or(0);
+        env.storage()
+            .instance()
+            .set(&PARTICIPANT_COUNT, &(count + 1));
+
         env.storage().instance().extend_ttl(50, 100);
         Ok(true)
     }
@@ -121,6 +166,19 @@ impl CampaignContract {
             .instance()
             .get(&CAMPAIGN_ACTIVE)
             .unwrap_or(false)
+    }
+
+    /// Get current participant count.
+    pub fn get_participant_count(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .get(&PARTICIPANT_COUNT)
+            .unwrap_or(0)
+    }
+
+    /// Get maximum participant cap (0 means unlimited).
+    pub fn get_max_cap(env: Env) -> u64 {
+        env.storage().instance().get(&MAX_CAP).unwrap_or(0)
     }
 }
 
