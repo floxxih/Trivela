@@ -54,11 +54,13 @@ fn test_metadata() {
 }
 
 #[test]
+fn test_claim_more_than_balance_errors() {
 fn test_batch_credit() {
     let env = Env::default();
     let contract_id = env.register_contract(None, RewardsContract);
     let client = RewardsContractClient::new(&env, &contract_id);
     let admin = Address::generate(&env);
+    let user = Address::generate(&env);
     let user_a = Address::generate(&env);
     let user_b = Address::generate(&env);
     client.initialize(
@@ -68,6 +70,13 @@ fn test_batch_credit() {
     );
 
     env.mock_all_auths();
+    let result = client.try_claim(&user, &1);
+    assert!(result.is_err());
+    assert_eq!(client.balance(&user), 0);
+}
+
+#[test]
+fn test_credit_overflow_errors() {
     let recipients = soroban_sdk::vec![
         &env,
         (user_a.clone(), 50u64),
@@ -86,6 +95,7 @@ fn test_batch_credit_is_atomic_on_overflow() {
     let contract_id = env.register_contract(None, RewardsContract);
     let client = RewardsContractClient::new(&env, &contract_id);
     let admin = Address::generate(&env);
+    let user = Address::generate(&env);
     let user_a = Address::generate(&env);
     let user_b = Address::generate(&env);
     client.initialize(
@@ -95,6 +105,23 @@ fn test_batch_credit_is_atomic_on_overflow() {
     );
 
     env.mock_all_auths();
+    client.credit(&admin, &user, &u64::MAX);
+
+    let result = client.try_credit(&admin, &user, &1);
+    assert!(result.is_err());
+    assert_eq!(client.balance(&user), u64::MAX);
+}
+
+#[test]
+fn test_uninitialized_access_returns_defaults() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, RewardsContract);
+    let client = RewardsContractClient::new(&env, &contract_id);
+    let user = Address::generate(&env);
+
+    assert_eq!(client.metadata(), (symbol_short!("Trivela"), symbol_short!("TVL")));
+    assert_eq!(client.balance(&user), 0);
+    assert_eq!(client.total_claimed(), 0);
     client.credit(&admin, &user_a, &10);
     client.credit(&admin, &user_b, &u64::MAX);
 
