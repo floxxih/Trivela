@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
   getWalletAddress,
+  fetchWalletBalance,
   fetchRewardsBalance,
   formatPoints,
+  formatWalletBalance,
   normalizeError,
 } from './stellar';
 import ClaimRewards from './ClaimRewards';
@@ -41,9 +43,11 @@ export default function Landing({ theme, onToggleTheme }) {
   const [campaignRefreshKey, setCampaignRefreshKey] = useState(0);
   const [pagination, setPagination] = useState(() => getFallbackPagination([], 1));
   const [walletAddress, setWalletAddress] = useState('');
+  const [walletBalance, setWalletBalance] = useState('');
   const [points, setPoints] = useState(null);
   const [pointsError, setPointsError] = useState('');
   const [isWalletLoading, setIsWalletLoading] = useState(false);
+  const [isWalletBalanceLoading, setIsWalletBalanceLoading] = useState(false);
   const [isPointsLoading, setIsPointsLoading] = useState(false);
 
   useEffect(() => {
@@ -115,6 +119,24 @@ export default function Landing({ theme, onToggleTheme }) {
     }
   };
 
+  const loadWalletBalance = async (address = walletAddress) => {
+    if (!address) {
+      setWalletBalance('');
+      return;
+    }
+
+    setIsWalletBalanceLoading(true);
+
+    try {
+      const balance = await fetchWalletBalance(address);
+      setWalletBalance(formatWalletBalance(balance));
+    } catch (_error) {
+      setWalletBalance('Unavailable');
+    } finally {
+      setIsWalletBalanceLoading(false);
+    }
+  };
+
   const connectWallet = async () => {
     setIsWalletLoading(true);
     setPointsError('');
@@ -122,9 +144,13 @@ export default function Landing({ theme, onToggleTheme }) {
     try {
       const address = await getWalletAddress();
       setWalletAddress(address);
-      await loadPoints(address);
+      await Promise.all([
+        loadPoints(address),
+        loadWalletBalance(address),
+      ]);
     } catch (error) {
       setWalletAddress('');
+      setWalletBalance('');
       setPoints(null);
       setPointsError(normalizeError(error));
     } finally {
@@ -135,7 +161,13 @@ export default function Landing({ theme, onToggleTheme }) {
   return (
     <div className="landing">
       <a className="skip-link" href="#main-content">Skip to main content</a>
-      <Header theme={theme} onToggleTheme={onToggleTheme} walletAddress={walletAddress} />
+      <Header
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        walletAddress={walletAddress}
+        walletBalance={walletBalance}
+        isWalletBalanceLoading={isWalletBalanceLoading}
+      />
 
       <main id="main-content" className="landing-main" tabIndex="-1">
         <header className="hero">
