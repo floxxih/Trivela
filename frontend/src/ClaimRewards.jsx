@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { submitClaimTransaction, normalizeError } from './stellar';
 
 /**
@@ -17,11 +17,16 @@ export default function ClaimRewards({ walletAddress, onClaimSuccess }) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [txHash, setTxHash] = useState('');
   const [claimError, setClaimError] = useState('');
+  const amountId = useId();
+  const headingId = useId();
+  const feedbackId = useId();
+  const feedbackDescribedBy = txHash || claimError ? feedbackId : undefined;
 
   const parsedAmount = Number(amount);
   const isValid = Number.isInteger(parsedAmount) && parsedAmount > 0;
 
-  const handleClaim = async () => {
+  const handleClaim = async (event) => {
+    event.preventDefault();
     if (!walletAddress || !isValid) return;
 
     setIsClaiming(true);
@@ -48,16 +53,16 @@ export default function ClaimRewards({ walletAddress, onClaimSuccess }) {
   };
 
   return (
-    <div className="claim-section">
-      <p className="claim-heading">Claim rewards</p>
+    <section className="claim-section" aria-labelledby={headingId}>
+      <h3 id={headingId} className="claim-heading">Claim rewards</h3>
 
-      <div className="claim-form">
-        <label htmlFor="claim-amount" className="claim-label">
+      <form className="claim-form" onSubmit={handleClaim}>
+        <label htmlFor={amountId} className="claim-label">
           Amount to claim
         </label>
         <div className="claim-input-row">
           <input
-            id="claim-amount"
+            id={amountId}
             type="number"
             min="1"
             step="1"
@@ -65,21 +70,22 @@ export default function ClaimRewards({ walletAddress, onClaimSuccess }) {
             className="claim-input"
             value={amount}
             disabled={isClaiming || !walletAddress}
+            aria-invalid={Boolean(claimError)}
+            aria-describedby={feedbackDescribedBy}
             onChange={(e) => setAmount(e.target.value)}
           />
           <button
-            type="button"
+            type="submit"
             className="btn btn-primary btn-button"
             disabled={!walletAddress || !isValid || isClaiming}
-            onClick={handleClaim}
           >
             {isClaiming ? 'Signing…' : 'Claim'}
           </button>
         </div>
-      </div>
+      </form>
 
       {txHash && (
-        <p className="claim-success">
+        <p id={feedbackId} className="claim-success" role="status" aria-live="polite">
           ✓ Claimed successfully —{' '}
           <a
             href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
@@ -91,7 +97,7 @@ export default function ClaimRewards({ walletAddress, onClaimSuccess }) {
         </p>
       )}
 
-      {claimError && <p className="claim-error">{claimError}</p>}
-    </div>
+      {claimError && <p id={feedbackId} className="claim-error" role="alert">{claimError}</p>}
+    </section>
   );
 }

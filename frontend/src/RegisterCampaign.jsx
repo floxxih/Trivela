@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import {
   submitRegisterTransaction,
   checkParticipantStatus,
@@ -20,17 +20,23 @@ export default function RegisterCampaign({ walletAddress }) {
   const [isRegistering, setIsRegistering] = useState(false);
   const [txHash, setTxHash] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const headingId = useId();
+  const statusId = useId();
 
   /* On mount (and when the wallet changes), check participant status. */
   useEffect(() => {
     if (!walletAddress || !CAMPAIGN_CONTRACT_ID) {
       setIsRegistered(null);
+      setError('');
+      setNotice('');
       return;
     }
 
     let cancelled = false;
     setIsChecking(true);
     setError('');
+    setNotice('');
 
     checkParticipantStatus(walletAddress)
       .then((registered) => {
@@ -53,6 +59,7 @@ export default function RegisterCampaign({ walletAddress }) {
 
     setIsRegistering(true);
     setError('');
+    setNotice('');
     setTxHash('');
 
     try {
@@ -61,7 +68,7 @@ export default function RegisterCampaign({ walletAddress }) {
       setIsRegistered(true);
 
       if (alreadyRegistered) {
-        setError('You were already registered in this campaign.');
+        setNotice('You were already registered in this campaign.');
       }
     } catch (err) {
       setError(normalizeError(err));
@@ -81,12 +88,12 @@ export default function RegisterCampaign({ walletAddress }) {
         : '—';
 
   return (
-    <div className="register-section">
-      <p className="register-heading">Campaign registration</p>
+    <section className="register-section" aria-labelledby={headingId} aria-busy={isChecking || isRegistering}>
+      <h3 id={headingId} className="register-heading">Campaign registration</h3>
 
       <div className="register-status">
         <span className="register-status-label">Participant status</span>
-        <strong className={isRegistered ? 'register-active' : ''}>
+        <strong id={statusId} className={isRegistered ? 'register-active' : ''} aria-live="polite">
           {statusLabel}
         </strong>
       </div>
@@ -96,6 +103,7 @@ export default function RegisterCampaign({ walletAddress }) {
           type="button"
           className="btn btn-primary btn-button"
           disabled={isRegistering || isChecking || !walletAddress}
+          aria-describedby={statusId}
           onClick={handleRegister}
         >
           {isRegistering ? 'Signing…' : 'Register in campaign'}
@@ -103,7 +111,7 @@ export default function RegisterCampaign({ walletAddress }) {
       )}
 
       {txHash && (
-        <p className="register-success">
+        <p className="register-success" role="status" aria-live="polite">
           ✓ Registered successfully —{' '}
           <a
             href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
@@ -115,7 +123,8 @@ export default function RegisterCampaign({ walletAddress }) {
         </p>
       )}
 
-      {error && <p className="register-error">{error}</p>}
-    </div>
+      {notice && <p className="register-note" role="status">{notice}</p>}
+      {error && <p className="register-error" role="alert">{error}</p>}
+    </section>
   );
 }
