@@ -52,3 +52,60 @@ fn test_metadata() {
     assert_eq!(metadata.0, name);
     assert_eq!(metadata.1, symbol);
 }
+
+#[test]
+fn test_batch_credit() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, RewardsContract);
+    let client = RewardsContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let user_a = Address::generate(&env);
+    let user_b = Address::generate(&env);
+    client.initialize(
+        &admin,
+        &symbol_short!("Trivela"),
+        &symbol_short!("TVL"),
+    );
+
+    env.mock_all_auths();
+    let recipients = soroban_sdk::vec![
+        &env,
+        (user_a.clone(), 50u64),
+        (user_b.clone(), 75u64),
+    ];
+
+    client.batch_credit(&admin, &recipients);
+
+    assert_eq!(client.balance(&user_a), 50);
+    assert_eq!(client.balance(&user_b), 75);
+}
+
+#[test]
+fn test_batch_credit_is_atomic_on_overflow() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, RewardsContract);
+    let client = RewardsContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let user_a = Address::generate(&env);
+    let user_b = Address::generate(&env);
+    client.initialize(
+        &admin,
+        &symbol_short!("Trivela"),
+        &symbol_short!("TVL"),
+    );
+
+    env.mock_all_auths();
+    client.credit(&admin, &user_a, &10);
+    client.credit(&admin, &user_b, &u64::MAX);
+
+    let recipients = soroban_sdk::vec![
+        &env,
+        (user_a.clone(), 15u64),
+        (user_b.clone(), 1u64),
+    ];
+
+    let result = client.try_batch_credit(&admin, &recipients);
+    assert!(result.is_err());
+    assert_eq!(client.balance(&user_a), 10);
+    assert_eq!(client.balance(&user_b), u64::MAX);
+}
