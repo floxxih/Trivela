@@ -104,6 +104,27 @@ cargo build --target wasm32-unknown-unknown --release -p trivela-campaign-contra
      initialize --admin alice --name "Trivela Rewards" --symbol "TVL"
    ```
 
+#### One-command testnet deploy
+
+You can also build and deploy both contracts with the helper script:
+
+```bash
+STELLAR_SOURCE=alice npm run deploy:testnet
+```
+
+Optional environment variables:
+
+- `STELLAR_NETWORK`: Stellar CLI network alias to deploy against (defaults to `testnet`)
+- `STELLAR_SOURCE`: Stellar CLI identity used for the deploy
+- `TRIVELA_ENV_OUT`: output env file for the deployed contract IDs (defaults to `.env.testnet`)
+
+The script writes:
+
+```bash
+VITE_REWARDS_CONTRACT_ID=...
+VITE_CAMPAIGN_CONTRACT_ID=...
+```
+
 
 ### 3. Run backend
 
