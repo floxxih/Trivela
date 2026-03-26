@@ -14,16 +14,13 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "credit",
+              "function_name": "set_active",
               "args": [
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                },
-                {
-                  "u64": "100"
+                  "bool": false
                 }
               ]
             }
@@ -61,6 +58,14 @@
                   "storage": [
                     {
                       "key": {
+                        "symbol": "active"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "admin"
                       },
                       "val": {
@@ -69,7 +74,7 @@
                     },
                     {
                       "key": {
-                        "symbol": "claimed"
+                        "symbol": "count"
                       },
                       "val": {
                         "u64": "0"
@@ -77,48 +82,18 @@
                     },
                     {
                       "key": {
-                        "symbol": "metadata"
+                        "symbol": "end"
                       },
                       "val": {
-                        "vec": [
-                          {
-                            "symbol": "Trivela"
-                          },
-                          {
-                            "symbol": "TVL"
-                          }
-                        ]
+                        "u64": "18446744073709551615"
                       }
                     },
                     {
                       "key": {
-                        "symbol": "mxcredit"
+                        "symbol": "start"
                       },
                       "val": {
                         "u64": "0"
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "paused"
-                      },
-                      "val": {
-                        "bool": false
-                      }
-                    },
-                    {
-                      "key": {
-                        "vec": [
-                          {
-                            "symbol": "balance"
-                          },
-                          {
-                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                          }
-                        ]
-                      },
-                      "val": {
-                        "u64": "100"
                       }
                     }
                   ]

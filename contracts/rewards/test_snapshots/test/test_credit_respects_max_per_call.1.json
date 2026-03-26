@@ -14,13 +14,10 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "credit",
+              "function_name": "set_max_credit_per_call",
               "args": [
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
                   "u64": "100"
@@ -32,6 +29,7 @@
         }
       ]
     ],
+    [],
     []
   ],
   "ledger": {
@@ -95,7 +93,7 @@
                         "symbol": "mxcredit"
                       },
                       "val": {
-                        "u64": "0"
+                        "u64": "100"
                       }
                     },
                     {
@@ -104,21 +102,6 @@
                       },
                       "val": {
                         "bool": false
-                      }
-                    },
-                    {
-                      "key": {
-                        "vec": [
-                          {
-                            "symbol": "balance"
-                          },
-                          {
-                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                          }
-                        ]
-                      },
-                      "val": {
-                        "u64": "100"
                       }
                     }
                   ]
