@@ -139,3 +139,76 @@ test('/health/rpc returns 503 when the Soroban RPC health check fails', async ()
     await stopTestServer(server);
   }
 });
+
+test('POST /api/campaigns creates a new campaign and returns it', async () => {
+  const { server, baseUrl } = await startTestServer();
+
+  try {
+    const newCampaign = {
+      name: 'Test Campaign',
+      description: 'A test campaign',
+      rewardPerAction: 50,
+    };
+
+    const response = await fetch(`${baseUrl}/api/campaigns`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(newCampaign),
+    });
+
+    assert.equal(response.status, 201);
+    const created = await response.json();
+    assert.equal(created.name, newCampaign.name);
+    assert.equal(created.description, newCampaign.description);
+    assert.equal(created.rewardPerAction, newCampaign.rewardPerAction);
+    assert.ok(created.id);
+    assert.ok(created.createdAt);
+
+    // Verify it's in the list
+    const listResponse = await fetch(`${baseUrl}/api/campaigns`);
+    const list = await listResponse.json();
+    const found = list.data.find((c) => c.id === created.id);
+    assert.ok(found);
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('PUT /api/campaigns/:id updates an existing campaign', async () => {
+  const { server, baseUrl } = await startTestServer();
+
+  try {
+    const updateData = {
+      name: 'Updated Name',
+      active: false,
+    };
+
+    const response = await fetch(`${baseUrl}/api/campaigns/1`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updateData),
+    });
+
+    assert.equal(response.status, 200);
+    const updated = await response.json();
+    assert.equal(updated.id, '1');
+    assert.equal(updated.name, updateData.name);
+    assert.equal(updated.active, updateData.active);
+
+    // Verify 404 for missing
+    const missingResponse = await fetch(`${baseUrl}/api/campaigns/999`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updateData),
+    });
+    assert.equal(missingResponse.status, 404);
+  } finally {
+    await stopTestServer(server);
+  }
+});
