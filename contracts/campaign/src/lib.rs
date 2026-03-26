@@ -5,7 +5,9 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contracterror, contractimpl, contractmeta, symbol_short, Address, Env, Symbol};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, contractmeta, symbol_short, Address, Env, Symbol,
+};
 
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -39,6 +41,7 @@ impl CampaignContract {
         env.storage().instance().set(&START_TIME, &0u64);
         env.storage().instance().set(&END_TIME, &u64::MAX);
         env.storage().instance().set(&PARTICIPANT_COUNT, &0u64);
+        env.storage().instance().extend_ttl(50, 100);
         Ok(())
     }
 
@@ -52,6 +55,7 @@ impl CampaignContract {
 
         env.storage().instance().set(&START_TIME, &start);
         env.storage().instance().set(&END_TIME, &end);
+        env.storage().instance().extend_ttl(50, 100);
         Ok(())
     }
 
@@ -64,6 +68,7 @@ impl CampaignContract {
         }
 
         env.storage().instance().set(&CAMPAIGN_ACTIVE, &active);
+        env.storage().instance().extend_ttl(50, 100);
         Ok(())
     }
 
@@ -76,6 +81,7 @@ impl CampaignContract {
         }
 
         env.storage().instance().set(&MAX_CAP, &max_cap);
+        env.storage().instance().extend_ttl(50, 100);
         Ok(())
     }
 
@@ -83,7 +89,11 @@ impl CampaignContract {
     pub fn register(env: Env, participant: Address) -> Result<bool, Error> {
         participant.require_auth();
 
-        let active: bool = env.storage().instance().get(&CAMPAIGN_ACTIVE).unwrap_or(false);
+        let active: bool = env
+            .storage()
+            .instance()
+            .get(&CAMPAIGN_ACTIVE)
+            .unwrap_or(false);
         if !active {
             return Err(Error::CampaignInactive);
         }
@@ -108,7 +118,11 @@ impl CampaignContract {
 
         let max_cap: u64 = env.storage().instance().get(&MAX_CAP).unwrap_or(0);
         if max_cap > 0 {
-            let count: u64 = env.storage().instance().get(&PARTICIPANT_COUNT).unwrap_or(0);
+            let count: u64 = env
+                .storage()
+                .instance()
+                .get(&PARTICIPANT_COUNT)
+                .unwrap_or(0);
             if count >= max_cap {
                 return Err(Error::CapacityReached);
             }
@@ -116,8 +130,14 @@ impl CampaignContract {
 
         env.storage().instance().set(&key, &true);
 
-        let count: u64 = env.storage().instance().get(&PARTICIPANT_COUNT).unwrap_or(0);
-        env.storage().instance().set(&PARTICIPANT_COUNT, &(count + 1));
+        let count: u64 = env
+            .storage()
+            .instance()
+            .get(&PARTICIPANT_COUNT)
+            .unwrap_or(0);
+        env.storage()
+            .instance()
+            .set(&PARTICIPANT_COUNT, &(count + 1));
 
         env.storage().instance().extend_ttl(50, 100);
         Ok(true)
@@ -133,12 +153,18 @@ impl CampaignContract {
 
     /// Check if campaign is active.
     pub fn is_active(env: Env) -> bool {
-        env.storage().instance().get(&CAMPAIGN_ACTIVE).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&CAMPAIGN_ACTIVE)
+            .unwrap_or(false)
     }
 
     /// Get current participant count.
     pub fn get_participant_count(env: Env) -> u64 {
-        env.storage().instance().get(&PARTICIPANT_COUNT).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&PARTICIPANT_COUNT)
+            .unwrap_or(0)
     }
 
     /// Get maximum participant cap (0 means unlimited).

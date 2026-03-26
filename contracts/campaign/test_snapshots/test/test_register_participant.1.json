@@ -71,6 +71,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "count"
+                      },
+                      "val": {
+                        "u64": "1"
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "end"
                       },
                       "val": {

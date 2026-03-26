@@ -7,7 +7,7 @@ rust-version = "1.75.0"
 description = "Trivela campaign configuration and eligibility on Soroban"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
