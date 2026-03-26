@@ -71,3 +71,45 @@ fn test_register_participant_twice_returns_false() {
     assert!(client.register(&participant));
     assert!(!client.register(&participant));
 }
+
+#[test]
+fn test_set_active_only_by_admin() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, CampaignContract);
+    let client = CampaignContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let other = Address::generate(&env);
+    client.initialize(&admin);
+
+    env.mock_all_auths();
+    let result = client.try_set_active(&other, &false);
+    assert_eq!(result, Err(Ok(Error::Unauthorized)));
+}
+
+#[test]
+fn test_register_when_inactive() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, CampaignContract);
+    let client = CampaignContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let participant = Address::generate(&env);
+    client.initialize(&admin);
+
+    env.mock_all_auths();
+    client.set_active(&admin, &false);
+
+    let result = client.try_register(&participant);
+    assert_eq!(result, Err(Ok(Error::CampaignInactive)));
+}
+
+#[test]
+fn test_is_participant_for_unknown_address() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, CampaignContract);
+    let client = CampaignContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let unknown = Address::generate(&env);
+    client.initialize(&admin);
+
+    assert!(!client.is_participant(&unknown));
+}
