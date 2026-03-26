@@ -9,35 +9,103 @@ import {
 } from './config';
 import {
   getWalletAddress,
+  fetchWalletBalance,
   fetchRewardsBalance,
   formatPoints,
+  formatWalletBalance,
   normalizeError,
 } from './stellar';
 import ClaimRewards from './ClaimRewards';
-import RegisterCampaign from './RegisterCampaign';
 import './Landing.css';
+import RegisterCampaign from './RegisterCampaign';
+import Header from './components/Header';
+import CampaignCard from './components/CampaignCard';
+import EmptyState from './components/EmptyState';
 
-const GITHUB_REPO = 'https://github.com/FinesseStudioLab/Trivela';
-const GITHUB_ISSUES = 'https://github.com/FinesseStudioLab/Trivela/issues';
 const STELLAR_DOCS = 'https://developers.stellar.org/docs';
 const DRIP_WAVE = 'https://www.drips.network/wave/stellar';
+const GITHUB_REPO = 'https://github.com/FinesseStudioLab/Trivela';
+const GITHUB_ISSUES = 'https://github.com/FinesseStudioLab/Trivela/issues';
+const CAMPAIGNS_PER_PAGE = 6;
 
-export default function Landing() {
+function getFallbackPagination(items, page) {
+  return {
+    total: items.length,
+    count: items.length,
+    page,
+    limit: CAMPAIGNS_PER_PAGE,
+    offset: (page - 1) * CAMPAIGNS_PER_PAGE,
+    totalPages: items.length > 0 ? 1 : 0,
+    hasPreviousPage: page > 1,
+    hasNextPage: false,
+    previousPage: page > 1 ? page - 1 : null,
+    nextPage: null,
+  };
+}
+
+export default function Landing({ theme, onToggleTheme }) {
   const [campaigns, setCampaigns] = useState([]);
+  const [campaignsError, setCampaignsError] = useState('');
+  const [isCampaignsLoading, setIsCampaignsLoading] = useState(true);
+  const [campaignPage, setCampaignPage] = useState(1);
+  const [campaignRefreshKey, setCampaignRefreshKey] = useState(0);
+  const [pagination, setPagination] = useState(() => getFallbackPagination([], 1));
   const [walletAddress, setWalletAddress] = useState('');
+  const [walletBalance, setWalletBalance] = useState('');
   const [points, setPoints] = useState(null);
   const [pointsError, setPointsError] = useState('');
   const [isWalletLoading, setIsWalletLoading] = useState(false);
+  const [isWalletBalanceLoading, setIsWalletBalanceLoading] = useState(false);
   const [isPointsLoading, setIsPointsLoading] = useState(false);
   const rewardsContract = getRewardsContract();
   const campaignContract = getCampaignContract();
 
   useEffect(() => {
-    fetch(apiUrl('/api/v1/campaigns'))
-      .then((r) => r.json())
-      .then(setCampaigns)
-      .catch(() => setCampaigns([]));
-  }, []);
+    const controller = new AbortController();
+    setIsCampaignsLoading(true);
+    setCampaignsError('');
+
+    fetch(apiUrl(`/api/v1/campaigns?page=${campaignPage}&limit=${CAMPAIGNS_PER_PAGE}`), {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Campaign API returned ${response.status}`);
+        }
+
+        return response.json();
+      })
+      .then((payload) => {
+        const items = Array.isArray(payload) ? payload : payload.data ?? payload.campaigns ?? [];
+        const nextPagination = Array.isArray(payload)
+          ? getFallbackPagination(items, campaignPage)
+          : {
+            ...getFallbackPagination(items, campaignPage),
+            ...payload.pagination,
+            total: payload.pagination?.total ?? items.length,
+            count: payload.pagination?.count ?? items.length,
+          };
+
+        setCampaigns(items);
+        setPagination(nextPagination);
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') {
+          return;
+        }
+
+        setCampaigns([]);
+        setPagination(getFallbackPagination([], campaignPage));
+        setCampaignsError('Unable to load campaigns right now.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsCampaignsLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [campaignPage, campaignRefreshKey]);
 
   const loadPoints = async (address = walletAddress) => {
     if (!address) {
@@ -60,6 +128,24 @@ export default function Landing() {
     }
   };
 
+  const loadWalletBalance = async (address = walletAddress) => {
+    if (!address) {
+      setWalletBalance('');
+      return;
+    }
+
+    setIsWalletBalanceLoading(true);
+
+    try {
+      const balance = await fetchWalletBalance(address);
+      setWalletBalance(formatWalletBalance(balance));
+    } catch (_error) {
+      setWalletBalance('Unavailable');
+    } finally {
+      setIsWalletBalanceLoading(false);
+    }
+  };
+
   const connectWallet = async () => {
     setIsWalletLoading(true);
     setPointsError('');
@@ -67,9 +153,13 @@ export default function Landing() {
     try {
       const address = await getWalletAddress();
       setWalletAddress(address);
-      await loadPoints(address);
+      await Promise.all([
+        loadPoints(address),
+        loadWalletBalance(address),
+      ]);
     } catch (error) {
       setWalletAddress('');
+      setWalletBalance('');
       setPoints(null);
       setPointsError(normalizeError(error));
     } finally {
@@ -79,198 +169,249 @@ export default function Landing() {
 
   return (
     <div className="landing">
-      <nav className="nav">
-        <a href="/" className="nav-logo">
-          <span className="nav-logo-icon">◇</span>
-          Trivela
-        </a>
-        <div className="nav-links">
-          <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href={GITHUB_ISSUES} target="_blank" rel="noopener noreferrer">Contribute</a>
-          <a href={STELLAR_DOCS} target="_blank" rel="noopener noreferrer">Stellar</a>
-        </div>
-      </nav>
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <Header
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        walletAddress={walletAddress}
+        walletBalance={walletBalance}
+        isWalletBalanceLoading={isWalletBalanceLoading}
+      />
 
-      <header className="hero">
-        <div className="hero-badge">
-          Open source · Built for <a href={DRIP_WAVE} target="_blank" rel="noopener noreferrer">Stellar Wave</a>
-        </div>
-        <h1 className="hero-title">
-          Campaigns & rewards
-          <br />
-          <span className="hero-title-accent">on Stellar Soroban</span>
-        </h1>
-        <p className="hero-subtitle">
-          Create on-chain campaigns, award points via smart contracts, and let users claim rewards.
-          Full stack: Rust contracts, Node API, React frontend — ready for contributors.
-        </p>
-        <div className="hero-cta">
-          <a href={GITHUB_REPO} className="btn btn-primary" target="_blank" rel="noopener noreferrer">
-            View repository
-          </a>
-          <a href={GITHUB_ISSUES} className="btn btn-secondary" target="_blank" rel="noopener noreferrer">
-            Pick an issue · Contribute
-          </a>
-        </div>
-        <div className="hero-stats">
-          <span><strong>50</strong> open issues</span>
-          <span className="hero-stats-dot">·</span>
-          <span><strong>3</strong> stacks</span>
-          <span className="hero-stats-dot">·</span>
-          <span>Rust · Node · React</span>
-        </div>
-      </header>
+      <main id="main-content" className="landing-main" tabIndex="-1">
+        <header className="hero">
+          <div className="hero-badge">
+            Open source · Built for <a href={DRIP_WAVE} target="_blank" rel="noopener noreferrer">Stellar Wave</a>
+          </div>
+          <h1 className="hero-title">
+            Campaigns & rewards
+            <br />
+            <span className="hero-title-accent">on Stellar Soroban</span>
+          </h1>
+          <p className="hero-subtitle">
+            Create on-chain campaigns, award points via smart contracts, and let users claim rewards.
+            Full stack: Rust contracts, Node API, React frontend.
+          </p>
+          <div className="hero-cta">
+            <a href={GITHUB_REPO} className="btn btn-primary" target="_blank" rel="noopener noreferrer">
+              View repository
+            </a>
+            <a href={GITHUB_ISSUES} className="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+              Browse contributor issues
+            </a>
+          </div>
+          <div className="hero-stats" aria-label="Project summary">
+            <span><strong>50</strong> open issues</span>
+            <span className="hero-stats-dot" aria-hidden="true">·</span>
+            <span><strong>3</strong> stacks</span>
+            <span className="hero-stats-dot" aria-hidden="true">·</span>
+            <span>Rust · Node · React</span>
+          </div>
+        </header>
 
-      <section className="section rewards-panel">
-        <div className="rewards-card">
-          <div>
-            <p className="rewards-eyebrow">Wallet rewards</p>
-            <h2 className="rewards-title">My points</h2>
-            <p className="rewards-copy">
-              Connect your Freighter wallet to read your rewards balance directly from the deployed Soroban contract.
-            </p>
+        <section className="section rewards-panel" aria-labelledby="rewards-title">
+          <div className="rewards-card">
+            <div>
+              <p className="rewards-eyebrow">Wallet rewards</p>
+              <h2 id="rewards-title" className="rewards-title">My points</h2>
+              <p className="rewards-copy">
+                Connect your Freighter wallet to read your rewards balance directly from the
+                deployed Soroban contract.
+              </p>
+            </div>
+
+            <div className="rewards-balance" aria-live="polite">
+              <span className="rewards-balance-label">Available points</span>
+              <strong>{points ?? '—'}</strong>
+            </div>
+
+            <div className="rewards-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-button"
+                onClick={connectWallet}
+                disabled={isWalletLoading}
+                aria-describedby="rewards-title"
+              >
+                {isWalletLoading ? 'Connecting…' : walletAddress ? 'Reconnect wallet' : 'Connect wallet'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-button"
+                onClick={() => loadPoints()}
+                disabled={!walletAddress || isPointsLoading}
+              >
+                {isPointsLoading ? 'Refreshing…' : 'Refresh points'}
+              </button>
+            </div>
+
+            {walletAddress && (
+              <p className="rewards-wallet">
+                Connected wallet: <span>{walletAddress}</span>
+              </p>
+            )}
+
+            {pointsError && <p className="rewards-error" role="alert">{pointsError}</p>}
+
+            {walletAddress && (
+              <ClaimRewards
+                walletAddress={walletAddress}
+                onClaimSuccess={(newBalance) => {
+                  if (newBalance !== null) setPoints(newBalance);
+                  else loadPoints();
+                }}
+              />
+            )}
+          </div>
+        </section>
+
+        <section className="section features" aria-labelledby="features-title">
+          <h2 id="features-title" className="section-title">What’s in the stack</h2>
+          <p className="section-subtitle">Soroban contracts, API, and frontend — all open for contribution.</p>
+          <div className="features-grid">
+            <article className="feature-card">
+              <div className="feature-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /></svg>
+              </div>
+              <h3>Soroban contracts</h3>
+              <p>Rust rewards and campaign contracts for points, claims, and participant registration.</p>
+            </article>
+            <article className="feature-card">
+              <div className="feature-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" /></svg>
+              </div>
+              <h3>Backend API</h3>
+              <p>Express routes for campaigns, health checks, and public Soroban config metadata.</p>
+            </article>
+            <article className="feature-card">
+              <div className="feature-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
+              </div>
+              <h3>React frontend</h3>
+              <p>Vite UI with Freighter wallet connection, paginated campaigns, and contract interactions.</p>
+            </article>
+          </div>
+          <div className="config-grid">
+            <article className="config-card">
+              <h3>Environment-driven wiring</h3>
+              <p>
+                Frontend API and Soroban targets are configured through Vite env values so each deployment
+                can point at its own backend, rewards contract, and campaign contract without code changes.
+              </p>
+              <ul className="config-list">
+                <li><strong>Campaigns API:</strong> {apiUrl('/api/v1/campaigns')}</li>
+                <li><strong>Soroban RPC:</strong> {SOROBAN_RPC_URL}</li>
+                <li><strong>Rewards contract:</strong> {rewardsContract ? REWARDS_CONTRACT_ID : 'Not configured'}</li>
+                <li><strong>Campaign contract:</strong> {campaignContract ? CAMPAIGN_CONTRACT_ID : 'Not configured'}</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section className="section how" aria-labelledby="how-title">
+          <h2 id="how-title" className="section-title">How it works</h2>
+          <div className="how-grid">
+            <div className="how-step">
+              <span className="how-num" aria-hidden="true">1</span>
+              <h3>Deploy contracts</h3>
+              <p>Build and deploy the rewards and campaign contracts to Stellar testnet or mainnet.</p>
+            </div>
+            <div className="how-step">
+              <span className="how-num" aria-hidden="true">2</span>
+              <h3>Run API & frontend</h3>
+              <p>Start the backend and frontend locally or in the cloud and point them at your RPC.</p>
+            </div>
+            <div className="how-step">
+              <span className="how-num" aria-hidden="true">3</span>
+              <h3>Contribute</h3>
+              <p>Pick an issue from the repo and ship a focused improvement across the stack.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="section campaigns-preview" aria-labelledby="campaigns-title">
+          <h2 id="campaigns-title" className="section-title">Live campaigns</h2>
+          <p className="section-subtitle">
+            Paginated from the backend API with keyboard-friendly previous and next controls.
+          </p>
+
+          <div className="campaigns-panel" aria-busy={isCampaignsLoading}>
+            {isCampaignsLoading ? (
+              <p className="campaigns-status" role="status">Loading campaigns…</p>
+            ) : campaignsError ? (
+              <EmptyState
+                eyebrow="Campaign API"
+                title="We couldn’t load campaigns"
+                description={campaignsError}
+                actionLabel="Try again"
+                onAction={() => setCampaignRefreshKey((value) => value + 1)}
+              />
+            ) : campaigns.length === 0 ? (
+              <EmptyState
+                eyebrow="Campaign API"
+                title="No campaigns yet"
+                description="Create a campaign through the API and it will appear here once saved."
+              />
+            ) : (
+              <ul className="campaigns-grid">
+                {campaigns.map((campaign) => (
+                  <li key={campaign.id} className="campaigns-grid-item">
+                    <CampaignCard campaign={campaign} />
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          <div className="rewards-balance">
-            <span className="rewards-balance-label">Available points</span>
-            <strong>{points ?? '—'}</strong>
-          </div>
+          {!isCampaignsLoading && !campaignsError && pagination.totalPages > 1 && (
+            <nav className="campaign-pagination" aria-label="Campaign pages">
+              <button
+                type="button"
+                className="btn btn-secondary btn-button"
+                disabled={!pagination.hasPreviousPage}
+                onClick={() => setCampaignPage((page) => Math.max(page - 1, 1))}
+              >
+                Previous page
+              </button>
 
-          <div className="rewards-actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-button"
-              onClick={connectWallet}
-              disabled={isWalletLoading}
-            >
-              {isWalletLoading ? 'Connecting…' : walletAddress ? 'Reconnect wallet' : 'Connect wallet'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary btn-button"
-              onClick={() => loadPoints()}
-              disabled={!walletAddress || isPointsLoading}
-            >
-              {isPointsLoading ? 'Refreshing…' : 'Refresh points'}
-            </button>
-          </div>
+              <p className="campaign-pagination-summary" aria-live="polite">
+                Page {pagination.page} of {pagination.totalPages}
+                <span className="campaign-pagination-detail">
+                  Showing {pagination.count} of {pagination.total} campaigns
+                </span>
+              </p>
 
-          {walletAddress && (
-            <p className="rewards-wallet">
-              Connected wallet: <span>{walletAddress}</span>
-            </p>
+              <button
+                type="button"
+                className="btn btn-secondary btn-button"
+                disabled={!pagination.hasNextPage}
+                onClick={() => setCampaignPage((page) => page + 1)}
+              >
+                Next page
+              </button>
+            </nav>
           )}
 
-          {pointsError && <p className="rewards-error">{pointsError}</p>}
-
-          {walletAddress && (
-            <ClaimRewards
-              walletAddress={walletAddress}
-              onClaimSuccess={(newBalance) => {
-                if (newBalance !== null) setPoints(newBalance);
-                else loadPoints();
-              }}
-            />
-          )}
-        </div>
-      </section>
-
-      <section className="section features">
-        <h2 className="section-title">What&apos;s in the stack</h2>
-        <p className="section-subtitle">Soroban contracts, API, and frontend — all open for contribution.</p>
-        <div className="features-grid">
-          <article className="feature-card">
-            <div className="feature-icon" aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
-            </div>
-            <h3>Soroban contracts</h3>
-            <p>Rust rewards & campaign contracts: points, credit, claim, participant registration. Deploy on Stellar testnet or mainnet.</p>
-          </article>
-          <article className="feature-card">
-            <div className="feature-icon" aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
-            </div>
-            <h3>Backend API</h3>
-            <p>Node.js + Express: campaigns CRUD, health checks, config for Soroban RPC. Ready for a database and production.</p>
-          </article>
-          <article className="feature-card">
-            <div className="feature-icon" aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
-            </div>
-            <h3>React frontend</h3>
-            <p>Vite + Stellar SDK. Landing, campaign list, and hooks for wallet connect and contract calls.</p>
-          </article>
-        </div>
-        <div className="config-grid">
-          <article className="config-card">
-            <h3>Environment-driven wiring</h3>
-            <p>
-              Frontend API and Soroban targets are configured through Vite env values so each deployment
-              can point at its own backend, rewards contract, and campaign contract without code changes.
-            </p>
-            <ul className="config-list">
-              <li><strong>Campaigns API:</strong> {apiUrl('/api/v1/campaigns')}</li>
-              <li><strong>Soroban RPC:</strong> {SOROBAN_RPC_URL}</li>
-              <li><strong>Rewards contract:</strong> {rewardsContract ? REWARDS_CONTRACT_ID : 'Not configured'}</li>
-              <li><strong>Campaign contract:</strong> {campaignContract ? CAMPAIGN_CONTRACT_ID : 'Not configured'}</li>
-            </ul>
-          </article>
-        </div>
-      </section>
-
-      <section className="section how">
-        <h2 className="section-title">How it works</h2>
-        <div className="how-grid">
-          <div className="how-step">
-            <span className="how-num">1</span>
-            <h3>Deploy contracts</h3>
-            <p>Build and deploy the rewards and campaign contracts to Stellar (testnet or mainnet).</p>
-          </div>
-          <div className="how-step">
-            <span className="how-num">2</span>
-            <h3>Run API & frontend</h3>
-            <p>Start the backend and frontend locally or in the cloud. Connect to your Soroban RPC.</p>
-          </div>
-          <div className="how-step">
-            <span className="how-num">3</span>
-            <h3>Contribute</h3>
-            <p>Pick an issue from the repo — backend, frontend, or smart contract — and open a PR.</p>
-          </div>
-        </div>
-      </section>
-
-      {campaigns.length > 0 && (
-        <section className="section campaigns-preview">
-          <h2 className="section-title">Live campaigns</h2>
-          <ul className="campaigns-list">
-            {campaigns.slice(0, 3).map((c) => (
-              <li key={c.id} className="campaign-item">
-                <strong>{c.name}</strong>
-                <span className="campaign-meta">{c.active ? 'Active' : 'Inactive'} · {c.rewardPerAction} pts</span>
-              </li>
-            ))}
-          </ul>
-
-          {walletAddress && (
+          {walletAddress && campaigns.length > 0 && (
             <RegisterCampaign walletAddress={walletAddress} />
           )}
         </section>
-      )}
 
-      <section className="cta-band">
-        <div className="cta-band-inner">
-          <h2 className="cta-band-title">Ready to contribute?</h2>
-          <p className="cta-band-text">50 labeled issues across smart contracts, backend, and frontend. Part of the Stellar Wave on Drips.</p>
-          <a href={GITHUB_ISSUES} className="btn btn-primary btn-large" target="_blank" rel="noopener noreferrer">
-            Browse issues on GitHub
-          </a>
-        </div>
-      </section>
+        <section className="cta-band" aria-labelledby="cta-title">
+          <div className="cta-band-inner">
+            <h2 id="cta-title" className="cta-band-title">Ready to contribute?</h2>
+            <p className="cta-band-text">50 labeled issues across smart contracts, backend, and frontend. Part of the Stellar Wave on Drips.</p>
+            <a href={GITHUB_ISSUES} className="btn btn-primary btn-large" target="_blank" rel="noopener noreferrer">
+              Browse issues on GitHub
+            </a>
+          </div>
+        </section>
+      </main>
 
       <footer className="footer">
         <div className="footer-inner">
           <div className="footer-brand">
-            <span className="nav-logo-icon">◇</span>
+            <span className="nav-logo-icon" aria-hidden="true">◇</span>
             <span>Trivela</span>
           </div>
           <div className="footer-links">

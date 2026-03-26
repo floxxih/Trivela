@@ -27,6 +27,9 @@ export {
   REWARDS_CONTRACT_ID,
 } from './config';
 
+export const HORIZON_URL =
+    import.meta.env.VITE_HORIZON_URL || 'https://horizon-testnet.stellar.org';
+
 /* ---------- Freighter helpers ---------- */
 
 export function getFreighterApi() {
@@ -71,6 +74,18 @@ export function formatPoints(points) {
   return '0';
 }
 
+/**
+ * Format a native XLM balance string for compact UI display.
+ */
+export function formatWalletBalance(balance) {
+  const numericBalance = Number(balance);
+  if (!Number.isFinite(numericBalance)) return '0 XLM';
+  return `${numericBalance.toFixed(2)} XLM`;
+}
+
+/**
+ * Turn an unknown error value into a human-readable message.
+ */
 export function normalizeError(error) {
   if (!error) return 'Unable to load points right now.';
 
@@ -92,6 +107,29 @@ export function normalizeError(error) {
 
 /* ---------- contract read helpers ---------- */
 
+/**
+ * Fetch the connected account's native XLM balance from Horizon.
+ */
+export async function fetchWalletBalance(walletAddress) {
+  const response = await fetch(
+    `${HORIZON_URL}/accounts/${encodeURIComponent(walletAddress)}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(`Horizon returned ${response.status} while loading the wallet balance.`);
+  }
+
+  const account = await response.json();
+  const nativeBalance = account.balances?.find(
+    (balance) => balance.asset_type === 'native',
+  );
+
+  return nativeBalance?.balance || '0';
+}
+
+/**
+ * Simulate a read-only `balance(user)` call and return the raw result.
+ */
 export async function fetchRewardsBalance(walletAddress) {
   const contract = getRewardsContract();
   if (!contract) {

@@ -17,6 +17,8 @@ npm run dev
 - `STELLAR_NETWORK`: `testnet` or `mainnet`
 - `SOROBAN_RPC_URL`: Soroban RPC URL exposed in API metadata
 - `TRIVELA_API_KEY`: Optional API key for write endpoints (see below)
+- `RATE_LIMIT_WINDOW_MS`: Rate limit window for `/api/*` and `/api/v1/*` routes (default `60000`)
+- `RATE_LIMIT_MAX_REQUESTS`: Max requests per API key or IP in each window (default `60`)
 
 ## API Key Authentication
 
@@ -47,14 +49,59 @@ If the key is missing or wrong the API responds with `401 Unauthorized`.
 Preferred routes:
 
 - `GET /health`
+- `GET /health/rpc`
 - `GET /api/v1`
 - `GET /api/v1/campaigns`
 - `GET /api/v1/campaigns/:id`
+- `DELETE /api/v1/campaigns/:id`
+
+`GET /health` now includes the configured Soroban RPC health in the JSON
+response. `GET /health/rpc` performs the direct RPC dependency check and returns
+`503` when the configured Soroban RPC is unavailable.
+
+## Rate limiting
+
+All `/api/*` and `/api/v1/*` routes are protected by an in-memory rate limiter.
+Requests are keyed by API key when one is present, otherwise by client IP.
+When the limit is exceeded the API returns `429 Too Many Requests` with a
+`Retry-After` header.
+
+### Campaign pagination
+
+`GET /api/v1/campaigns` supports either `page`/`limit` or `offset`/`limit`.
+
+Example:
+
+```text
+GET /api/v1/campaigns?page=2&limit=10
+GET /api/v1/campaigns?offset=20&limit=10
+```
+
+Response shape:
+
+```json
+{
+  "data": [],
+  "pagination": {
+    "total": 0,
+    "count": 0,
+    "page": 1,
+    "limit": 10,
+    "offset": 0,
+    "totalPages": 0,
+    "hasPreviousPage": false,
+    "hasNextPage": false,
+    "previousPage": null,
+    "nextPage": null
+  }
+}
+```
 
 Backward-compatible legacy routes remain available under `/api/*` for now:
 
 - `GET /api`
 - `GET /api/campaigns`
 - `GET /api/campaigns/:id`
+- `DELETE /api/campaigns/:id`
 
 Migration note: new integrations should use `/api/v1/*`. Existing clients on `/api/*` continue to work.

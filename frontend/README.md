@@ -11,6 +11,20 @@ npm run dev
 
 Open `http://localhost:5173`. The dev server proxies `/api`, `/api/v1`, and `/health` to the backend on port `3001`.
 
+## Storybook
+
+Run Storybook from the frontend workspace:
+
+```bash
+npm run storybook
+```
+
+Build the static Storybook bundle with:
+
+```bash
+npm run build-storybook
+```
+
 ## Environment variables
 
 Create a `.env.local` file in `frontend/` when you need to point the app at non-default services.
@@ -20,16 +34,18 @@ VITE_API_URL=http://localhost:3001
 VITE_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
 VITE_REWARDS_CONTRACT_ID=CC...
 VITE_CAMPAIGN_CONTRACT_ID=CC...
+VITE_STELLAR_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
 ```
 
 - `VITE_API_URL`: Base URL used for frontend `fetch` calls. Leave empty to use the local Vite proxy.
 - `VITE_SOROBAN_RPC_URL`: Soroban RPC endpoint used by frontend contract helpers. Defaults to Stellar testnet RPC.
 - `VITE_REWARDS_CONTRACT_ID`: Optional rewards contract ID for frontend Soroban calls.
 - `VITE_CAMPAIGN_CONTRACT_ID`: Optional campaign contract ID for frontend Soroban calls.
+- `VITE_STELLAR_NETWORK_PASSPHRASE`: Stellar network passphrase. Defaults to testnet.
 
 ## API routing
 
-The frontend targets `/api/v1/*` routes by default. Legacy `/api/*` routes are still supported by the backend for backward compatibility, but new integrations should use the v1 prefix.
+The frontend targets `/api/v1/*` routes by default. Campaign loading uses the paginated response shape from `GET /api/v1/campaigns?page=1&limit=6`. Legacy `/api/*` routes are still supported by the backend for backward compatibility, but new integrations should use the v1 prefix.
 
 ## Config usage
 
