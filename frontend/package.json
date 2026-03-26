@@ -13,7 +13,8 @@
   "dependencies": {
     "@stellar/stellar-sdk": "^14.0.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.13.2"
   },
   "devDependencies": {
     "@storybook/addon-a11y": "^8.6.18",

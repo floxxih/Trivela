@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Landing from './Landing';
+import CampaignDetail from './CampaignDetail';
 import { applyTheme, getPreferredTheme, THEME_STORAGE_KEY } from './theme';
 
 export default function App() {
@@ -13,12 +15,30 @@ export default function App() {
     }
   }, [theme]);
 
+  const toggleTheme = () => {
+    setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'));
+  };
+
   return (
-    <Landing
-      theme={theme}
-      onToggleTheme={() => {
-        setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'));
-      }}
-    />
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <Landing
+            theme={theme}
+            onToggleTheme={toggleTheme}
+          />
+        }
+      />
+      <Route
+        path="/campaign/:id"
+        element={
+          <CampaignDetail
+            theme={theme}
+            onToggleTheme={toggleTheme}
+          />
+        }
+      />
+    </Routes>
   );
 }

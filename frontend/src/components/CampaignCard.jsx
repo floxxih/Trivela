@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { Link } from 'react-router-dom';
 
 function formatDate(value) {
   if (!value) return '';
@@ -22,38 +23,40 @@ export default function CampaignCard({ campaign }) {
 
   return (
     <article className="campaign-card" aria-labelledby={titleId}>
-      <div className="campaign-card-header">
-        <div>
-          <p className="campaign-card-eyebrow">Campaign #{campaign?.id || '—'}</p>
-          <h3 id={titleId} className="campaign-card-title">
-            {campaign?.name || 'Untitled campaign'}
-          </h3>
-        </div>
-
-        <span
-          className={`campaign-badge ${
-            isActive ? 'campaign-badge-active' : 'campaign-badge-inactive'
-          }`}
-        >
-          {isActive ? 'Active' : 'Inactive'}
-        </span>
-      </div>
-
-      <p className="campaign-card-description">{description}</p>
-
-      <dl className="campaign-card-metadata">
-        <div className="campaign-card-metadata-item">
-          <dt>Reward</dt>
-          <dd>{rewardPerAction} pts</dd>
-        </div>
-
-        {formattedDate && (
-          <div className="campaign-card-metadata-item">
-            <dt>Created</dt>
-            <dd>{formattedDate}</dd>
+      <Link to={`/campaign/${campaign?.id}`} className="campaign-card-link">
+        <div className="campaign-card-header">
+          <div>
+            <p className="campaign-card-eyebrow">Campaign #{campaign?.id || '—'}</p>
+            <h3 id={titleId} className="campaign-card-title">
+              {campaign?.name || 'Untitled campaign'}
+            </h3>
           </div>
-        )}
-      </dl>
+
+          <span
+            className={`campaign-badge ${
+              isActive ? 'campaign-badge-active' : 'campaign-badge-inactive'
+            }`}
+          >
+            {isActive ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+
+        <p className="campaign-card-description">{description}</p>
+
+        <dl className="campaign-card-metadata">
+          <div className="campaign-card-metadata-item">
+            <dt>Reward</dt>
+            <dd>{rewardPerAction} pts</dd>
+          </div>
+
+          {formattedDate && (
+            <div className="campaign-card-metadata-item">
+              <dt>Created</dt>
+              <dd>{formattedDate}</dd>
+            </div>
+          )}
+        </dl>
+      </Link>
     </article>
   );
 }

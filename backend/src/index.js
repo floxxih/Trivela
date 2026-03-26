@@ -8,6 +8,7 @@ import express from 'express';
 import { pathToFileURL } from 'node:url';
 import createApiKeyAuth from './middleware/apiKeyAuth.js';
 import { createRateLimiter } from './middleware/rateLimit.js';
+import logger from './middleware/logger.js';
 import { paginateItems } from './pagination.js';
 import { checkSorobanRpcHealth } from './sorobanRpc.js';
 
@@ -74,6 +75,7 @@ export function createApp(options = {}) {
   });
 
   app.use(cors({ origin: corsOrigin }));
+  app.use(logger);
   app.use(express.json());
 
   async function buildHealthPayload() {
@@ -117,6 +119,8 @@ export function createApp(options = {}) {
         info: `GET ${API_V1_PREFIX}`,
         campaigns: `GET ${API_V1_PREFIX}/campaigns`,
         campaign: `GET ${API_V1_PREFIX}/campaigns/:id`,
+        createCampaign: `POST ${API_V1_PREFIX}/campaigns`,
+        updateCampaign: `PUT ${API_V1_PREFIX}/campaigns/:id`,
         deleteCampaign: `DELETE ${API_V1_PREFIX}/campaigns/:id`,
       },
       compatibility: {
