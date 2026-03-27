@@ -20,6 +20,12 @@
               "args": [
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                },
+                {
+                  "bytes": "0000000000000000000000000000000000000000000000000000000000000000"
+                },
+                {
+                  "vec": []
                 }
               ]
             }
