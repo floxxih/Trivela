@@ -11,6 +11,41 @@ npm run dev
 
 Open `http://localhost:5173`. The dev server proxies `/api`, `/api/v1`, and `/health` to the backend on port `3001`.
 
+## E2E tests
+
+End-to-end tests live in `frontend/e2e/` and are powered by [Playwright](https://playwright.dev).
+
+**Run locally:**
+
+```bash
+# From the repo root — build first so vite preview has a dist/ to serve
+npm run build --workspace=frontend
+
+# Then run the tests (Playwright starts vite preview automatically)
+npm run test --workspace=frontend
+```
+
+Or from inside the `frontend/` directory:
+
+```bash
+npm run build
+npm run test
+```
+
+**First-time setup** — install the Chromium browser binary once:
+
+```bash
+npx playwright install chromium
+```
+
+**Tests cover:**
+
+- Page loads with the correct title and hero heading
+- Campaigns section renders either a campaign list or an empty state after loading
+- Clicking a campaign card navigates to the detail page (runs only when campaigns are present)
+
+The Playwright config is at `frontend/playwright.config.js`. Tests run in Chromium only to keep CI fast.
+
 ## Storybook
 
 Run Storybook from the frontend workspace:

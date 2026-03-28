@@ -7,7 +7,16 @@ import './CampaignDetail.css';
  * Campaign Detail Page
  * Fetches and displays full information for a specific campaign.
  */
-export default function CampaignDetail({ theme, onToggleTheme }) {
+export default function CampaignDetail({
+  theme,
+  onToggleTheme,
+  walletAddress,
+  walletBalance,
+  isWalletLoading,
+  isWalletBalanceLoading,
+  onConnectWallet,
+  onDisconnectWallet,
+}) {
   const { id } = useParams();
   const [campaign, setCampaign] = useState(null);
   const [error, setError] = useState('');
@@ -62,8 +71,12 @@ export default function CampaignDetail({ theme, onToggleTheme }) {
       <Header
         theme={theme}
         onToggleTheme={onToggleTheme}
-        // Detail page doesn't necessarily need wallet state, 
-        // but we keep consistent header
+        walletAddress={walletAddress}
+        walletBalance={walletBalance}
+        isWalletBalanceLoading={isWalletBalanceLoading}
+        isWalletLoading={isWalletLoading}
+        onConnectWallet={onConnectWallet}
+        onDisconnectWallet={onDisconnectWallet}
       />
 
       <main className="detail-main">

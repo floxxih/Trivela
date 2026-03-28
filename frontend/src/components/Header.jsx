@@ -16,6 +16,9 @@ export default function Header({
   walletAddress = '',
   walletBalance = '',
   isWalletBalanceLoading = false,
+  isWalletLoading = false,
+  onConnectWallet,
+  onDisconnectWallet,
 }) {
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
 
@@ -51,6 +54,22 @@ export default function Header({
                   {isWalletBalanceLoading ? 'Loading…' : walletBalance || '0 XLM'}
                 </span>
               </p>
+            )}
+
+            {onConnectWallet && (
+              <button
+                type="button"
+                className="btn btn-primary btn-button wallet-toggle"
+                onClick={walletAddress ? onDisconnectWallet : onConnectWallet}
+                disabled={isWalletLoading}
+                aria-label={walletAddress ? 'Disconnect wallet' : 'Connect wallet'}
+              >
+                {isWalletLoading
+                  ? 'Connecting…'
+                  : walletAddress
+                    ? 'Disconnect'
+                    : 'Connect wallet'}
+              </button>
             )}
 
             <button

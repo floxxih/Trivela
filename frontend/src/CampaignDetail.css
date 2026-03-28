@@ -188,4 +188,26 @@
   .detail-cta {
     padding: 1.5rem;
   }
+
+  .detail-main {
+    padding: 2rem 0.75rem;
+  }
+
+  .detail-section h2 {
+    font-size: 1.2rem;
+  }
+
+  .detail-description {
+    font-size: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
+  }
+
+  .detail-cta .btn {
+    width: 100%;
+    min-height: 48px;
+    font-size: 1rem;
+  }
 }
