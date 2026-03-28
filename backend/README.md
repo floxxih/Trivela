@@ -13,9 +13,12 @@ npm run dev
 ## Environment
 
 - `PORT`: Server port (default `3001`)
-- `CORS_ORIGIN`: Allowed origin for CORS
+- `CORS_ALLOWED_ORIGINS`: Comma-separated allowed origins for CORS (example: `https://app.example.com,https://admin.example.com`)
+- `CORS_ORIGIN`: Legacy single-origin CORS setting (fallback when `CORS_ALLOWED_ORIGINS` is not set)
 - `STELLAR_NETWORK`: `testnet` or `mainnet`
 - `SOROBAN_RPC_URL`: Soroban RPC URL exposed in API metadata
+- `REWARDS_CONTRACT_ID`: Optional rewards contract ID exposed by `/api/v1/config`
+- `CAMPAIGN_CONTRACT_ID`: Optional campaign contract ID exposed by `/api/v1/config`
 - `TRIVELA_API_KEY`: Optional API key for write endpoints (see below)
 - `RATE_LIMIT_WINDOW_MS`: Rate limit window for `/api/*` and `/api/v1/*` routes (default `60000`)
 - `RATE_LIMIT_MAX_REQUESTS`: Max requests per API key or IP in each window (default `60`)
@@ -51,6 +54,7 @@ Preferred routes:
 - `GET /health`
 - `GET /health/rpc`
 - `GET /api/v1`
+- `GET /api/v1/config`
 - `GET /api/v1/campaigns`
 - `GET /api/v1/campaigns/:id`
 - `DELETE /api/v1/campaigns/:id`
@@ -100,8 +104,40 @@ Response shape:
 Backward-compatible legacy routes remain available under `/api/*` for now:
 
 - `GET /api`
+- `GET /api/config`
 - `GET /api/campaigns`
 - `GET /api/campaigns/:id`
 - `DELETE /api/campaigns/:id`
 
 Migration note: new integrations should use `/api/v1/*`. Existing clients on `/api/*` continue to work.
+
+## Campaign payload validation
+
+`POST /api/v1/campaigns` and `PUT /api/v1/campaigns/:id` validate request bodies and return `400` with a list of errors when invalid.
+
+Validation rules:
+
+- `name` must be a non-empty string (`POST` required, `PUT` optional if omitted)
+- `rewardPerAction` must be a non-negative number (`POST` required, `PUT` optional if omitted)
+- `description` must be a string when provided
+- `active` must be a boolean when provided
+
+## Docker
+
+Build image from repo root:
+
+```bash
+docker build -f backend/Dockerfile -t trivela-backend .
+```
+
+Run container (example):
+
+```bash
+docker run --rm -p 3001:3001 \
+  -e PORT=3001 \
+  -e STELLAR_NETWORK=testnet \
+  -e SOROBAN_RPC_URL=https://soroban-testnet.stellar.org \
+  -e CORS_ALLOWED_ORIGINS=http://localhost:5173 \
+  -e TRIVELA_API_KEY=dev-secret \
+  trivela-backend
+```
