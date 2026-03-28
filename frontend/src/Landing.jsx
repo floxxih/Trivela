@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
-  getWalletAddress,
-  fetchWalletBalance,
   fetchRewardsBalance,
   formatPoints,
-  formatWalletBalance,
   normalizeError,
 } from './stellar';
 import ClaimRewards from './ClaimRewards';
 import './Landing.css';
 import RegisterCampaign from './RegisterCampaign';
+import CreateCampaign from './CreateCampaign';
 import Header from './components/Header';
 import CampaignCard from './components/CampaignCard';
 import EmptyState from './components/EmptyState';
@@ -35,19 +33,25 @@ function getFallbackPagination(items, page) {
   };
 }
 
-export default function Landing({ theme, onToggleTheme }) {
+export default function Landing({
+  theme,
+  onToggleTheme,
+  walletAddress,
+  walletBalance,
+  isWalletLoading,
+  isWalletBalanceLoading,
+  walletError,
+  onConnectWallet,
+  onDisconnectWallet,
+}) {
   const [campaigns, setCampaigns] = useState([]);
   const [campaignsError, setCampaignsError] = useState('');
   const [isCampaignsLoading, setIsCampaignsLoading] = useState(true);
   const [campaignPage, setCampaignPage] = useState(1);
   const [campaignRefreshKey, setCampaignRefreshKey] = useState(0);
   const [pagination, setPagination] = useState(() => getFallbackPagination([], 1));
-  const [walletAddress, setWalletAddress] = useState('');
-  const [walletBalance, setWalletBalance] = useState('');
   const [points, setPoints] = useState(null);
   const [pointsError, setPointsError] = useState('');
-  const [isWalletLoading, setIsWalletLoading] = useState(false);
-  const [isWalletBalanceLoading, setIsWalletBalanceLoading] = useState(false);
   const [isPointsLoading, setIsPointsLoading] = useState(false);
 
   useEffect(() => {
@@ -119,44 +123,14 @@ export default function Landing({ theme, onToggleTheme }) {
     }
   };
 
-  const loadWalletBalance = async (address = walletAddress) => {
-    if (!address) {
-      setWalletBalance('');
-      return;
-    }
-
-    setIsWalletBalanceLoading(true);
-
-    try {
-      const balance = await fetchWalletBalance(address);
-      setWalletBalance(formatWalletBalance(balance));
-    } catch (_error) {
-      setWalletBalance('Unavailable');
-    } finally {
-      setIsWalletBalanceLoading(false);
-    }
-  };
-
-  const connectWallet = async () => {
-    setIsWalletLoading(true);
-    setPointsError('');
-
-    try {
-      const address = await getWalletAddress();
-      setWalletAddress(address);
-      await Promise.all([
-        loadPoints(address),
-        loadWalletBalance(address),
-      ]);
-    } catch (error) {
-      setWalletAddress('');
-      setWalletBalance('');
+  useEffect(() => {
+    if (walletAddress) {
+      loadPoints(walletAddress);
+    } else {
       setPoints(null);
-      setPointsError(normalizeError(error));
-    } finally {
-      setIsWalletLoading(false);
+      setPointsError('');
     }
-  };
+  }, [walletAddress]);
 
   return (
     <div className="landing">
@@ -167,6 +141,9 @@ export default function Landing({ theme, onToggleTheme }) {
         walletAddress={walletAddress}
         walletBalance={walletBalance}
         isWalletBalanceLoading={isWalletBalanceLoading}
+        isWalletLoading={isWalletLoading}
+        onConnectWallet={onConnectWallet}
+        onDisconnectWallet={onDisconnectWallet}
       />
 
       <main id="main-content" className="landing-main" tabIndex="-1">
@@ -220,7 +197,7 @@ export default function Landing({ theme, onToggleTheme }) {
               <button
                 type="button"
                 className="btn btn-primary btn-button"
-                onClick={connectWallet}
+                onClick={onConnectWallet}
                 disabled={isWalletLoading}
                 aria-describedby="rewards-title"
               >
@@ -242,7 +219,7 @@ export default function Landing({ theme, onToggleTheme }) {
               </p>
             )}
 
-            {pointsError && <p className="rewards-error" role="alert">{pointsError}</p>}
+            {(pointsError || walletError) && <p className="rewards-error" role="alert">{pointsError || walletError}</p>}
 
             {walletAddress && (
               <ClaimRewards
@@ -313,7 +290,10 @@ export default function Landing({ theme, onToggleTheme }) {
 
           <div className="campaigns-panel" aria-busy={isCampaignsLoading}>
             {isCampaignsLoading ? (
-              <p className="campaigns-status" role="status">Loading campaigns…</p>
+              <div className="campaigns-loading" role="status">
+                <span className="spinner" aria-hidden="true" />
+                <p className="campaigns-loading-text">Loading campaigns…</p>
+              </div>
             ) : campaignsError ? (
               <EmptyState
                 eyebrow="Campaign API"
@@ -371,6 +351,10 @@ export default function Landing({ theme, onToggleTheme }) {
           {walletAddress && campaigns.length > 0 && (
             <RegisterCampaign walletAddress={walletAddress} />
           )}
+
+          <CreateCampaign
+            onCampaignCreated={() => setCampaignRefreshKey((value) => value + 1)}
+          />
         </section>
 
         <section className="cta-band" aria-labelledby="cta-title">
