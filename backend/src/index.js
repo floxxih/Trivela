@@ -11,6 +11,7 @@ import { createRateLimiter } from './middleware/rateLimit.js';
 import logger from './middleware/logger.js';
 import { paginateItems } from './pagination.js';
 import { checkSorobanRpcHealth } from './sorobanRpc.js';
+import { createDb } from './db.js';
 
 const DEFAULT_PORT = 3001;
 const DEFAULT_RPC_URL = 'https://soroban-testnet.stellar.org';
@@ -24,10 +25,9 @@ function normalizePositiveInteger(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function defaultCampaigns() {
+function defaultSeed() {
   return [
     {
-      id: '1',
       name: 'Welcome Campaign',
       description: 'Earn points for completing onboarding',
       active: true,
@@ -142,6 +142,11 @@ export function createApp(options = {}) {
     DEFAULT_RATE_LIMIT_MAX_REQUESTS,
   );
 
+  // When an explicit campaigns seed is provided (legacy test path), use it;
+  // otherwise fall back to the default "Welcome Campaign" row.
+  const seed = options.campaigns ?? defaultSeed();
+  const db = createDb(dbPath, seed);
+
   const app = express();
   const requireApiKey = createApiKeyAuth({ apiKey });
   const rateLimiter = createRateLimiter({
@@ -237,15 +242,19 @@ export function createApp(options = {}) {
   }
 
   function listCampaigns(req, res) {
-    res.json(paginateItems(campaigns, req.query));
+    const activeFilter =
+      req.query.active !== undefined
+        ? req.query.active === 'true'
+        : undefined;
+    const items = db.getAll({ active: activeFilter });
+    res.json(paginateItems(items, req.query));
   }
 
   function getCampaignById(req, res) {
-    const campaign = campaigns.find((entry) => entry.id === req.params.id);
+    const campaign = db.getById(req.params.id);
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
-
     return res.json(campaign);
   }
 
@@ -274,8 +283,8 @@ export function createApp(options = {}) {
   }
 
   function updateCampaign(req, res) {
-    const campaign = campaigns.find((entry) => entry.id === req.params.id);
-    if (!campaign) {
+    const existing = db.getById(req.params.id);
+    if (!existing) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
 
@@ -292,12 +301,10 @@ export function createApp(options = {}) {
   }
 
   function deleteCampaign(req, res) {
-    const index = campaigns.findIndex((entry) => entry.id === req.params.id);
-    if (index === -1) {
+    const deleted = db.delete(req.params.id);
+    if (!deleted) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
-
-    campaigns.splice(index, 1);
     return res.status(204).end();
   }
 

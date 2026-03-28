@@ -212,3 +212,57 @@ test('PUT /api/campaigns/:id updates an existing campaign', async () => {
     await stopTestServer(server);
   }
 });
+
+test('GET /api/campaigns?active=true returns only active campaigns', async () => {
+  const seed = [
+    { id: '1', name: 'Active One', description: '', active: true, rewardPerAction: 5, createdAt: new Date().toISOString() },
+    { id: '2', name: 'Inactive One', description: '', active: false, rewardPerAction: 5, createdAt: new Date().toISOString() },
+    { id: '3', name: 'Active Two', description: '', active: true, rewardPerAction: 10, createdAt: new Date().toISOString() },
+  ];
+  const { server, baseUrl } = await startTestServer({ campaigns: seed });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/campaigns?active=true`);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.data.length, 2);
+    assert.ok(body.data.every((c) => c.active === true));
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('GET /api/campaigns?active=false returns only inactive campaigns', async () => {
+  const seed = [
+    { id: '1', name: 'Active One', description: '', active: true, rewardPerAction: 5, createdAt: new Date().toISOString() },
+    { id: '2', name: 'Inactive One', description: '', active: false, rewardPerAction: 5, createdAt: new Date().toISOString() },
+  ];
+  const { server, baseUrl } = await startTestServer({ campaigns: seed });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/campaigns?active=false`);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.data.length, 1);
+    assert.equal(body.data[0].active, false);
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('GET /api/campaigns without active param returns all campaigns', async () => {
+  const seed = [
+    { id: '1', name: 'Active One', description: '', active: true, rewardPerAction: 5, createdAt: new Date().toISOString() },
+    { id: '2', name: 'Inactive One', description: '', active: false, rewardPerAction: 5, createdAt: new Date().toISOString() },
+  ];
+  const { server, baseUrl } = await startTestServer({ campaigns: seed });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/campaigns`);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.data.length, 2);
+  } finally {
+    await stopTestServer(server);
+  }
+});

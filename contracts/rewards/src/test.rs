@@ -5,6 +5,7 @@ extern crate std;
 use super::*;
 use soroban_sdk::testutils::{Address as _, Events as _};
 use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal};
+use soroban_sdk::{BytesN, Vec as SdkVec};
 use trivela_campaign_contract::{CampaignContract, CampaignContractClient};
 
 #[test]
@@ -224,7 +225,10 @@ fn test_campaign_rewards_integration_flow() {
     rewards.initialize(&admin, &symbol_short!("Trivela"), &symbol_short!("TVL"));
 
     env.mock_all_auths();
-    assert!(campaign.register(&user));
+    // No Merkle root configured — pass a dummy leaf and empty proof.
+    let dummy_leaf: BytesN<32> = BytesN::from_array(&env, &[0u8; 32]);
+    let empty_proof: SdkVec<BytesN<32>> = SdkVec::new(&env);
+    assert!(campaign.register(&user, &dummy_leaf, &empty_proof));
 
     rewards.credit(&admin, &user, &120);
     assert_eq!(rewards.balance(&user), 120);
