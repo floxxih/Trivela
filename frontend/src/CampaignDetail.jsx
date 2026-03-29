@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import Header from './components/Header';
-import './CampaignDetail.css';
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import Header from "./components/Header";
+import RegisterCampaign from "./RegisterCampaign";
+import "./CampaignDetail.css";
 
 /**
  * Campaign Detail Page
@@ -19,15 +20,15 @@ export default function CampaignDetail({
 }) {
   const { id } = useParams();
   const [campaign, setCampaign] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
-    const api = import.meta.env.VITE_API_URL || '';
-    
+    const api = import.meta.env.VITE_API_URL || "";
+
     setIsLoading(true);
-    setError('');
+    setError("");
 
     fetch(`${api}/api/v1/campaigns/${id}`, {
       signal: controller.signal,
@@ -35,7 +36,7 @@ export default function CampaignDetail({
       .then(async (response) => {
         if (!response.ok) {
           if (response.status === 404) {
-            throw new Error('Campaign not found');
+            throw new Error("Campaign not found");
           }
           throw new Error(`API returned ${response.status}`);
         }
@@ -45,8 +46,8 @@ export default function CampaignDetail({
         setCampaign(data);
       })
       .catch((err) => {
-        if (err.name === 'AbortError') return;
-        setError(err.message || 'Unable to load campaign details.');
+        if (err.name === "AbortError") return;
+        setError(err.message || "Unable to load campaign details.");
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -58,11 +59,11 @@ export default function CampaignDetail({
   }, [id]);
 
   const formatDate = (value) => {
-    if (!value) return '';
+    if (!value) return "";
     const date = new Date(value);
-    return new Intl.DateTimeFormat('en', {
-      dateStyle: 'long',
-      timeStyle: 'short',
+    return new Intl.DateTimeFormat("en", {
+      dateStyle: "long",
+      timeStyle: "short",
     }).format(date);
   };
 
@@ -93,7 +94,9 @@ export default function CampaignDetail({
             <div className="detail-error" role="alert">
               <h2>Error</h2>
               <p>{error}</p>
-              <Link to="/" className="btn btn-primary">Return to landing</Link>
+              <Link to="/" className="btn btn-primary">
+                Return to landing
+              </Link>
             </div>
           ) : (
             <article className="detail-content">
@@ -101,8 +104,10 @@ export default function CampaignDetail({
                 <p className="detail-eyebrow">Campaign #{campaign.id}</p>
                 <div className="detail-title-row">
                   <h1 className="detail-title">{campaign.name}</h1>
-                  <span className={`campaign-badge ${campaign.active !== false ? 'campaign-badge-active' : 'campaign-badge-inactive'}`}>
-                    {campaign.active !== false ? 'Active' : 'Inactive'}
+                  <span
+                    className={`campaign-badge ${campaign.active !== false ? "campaign-badge-active" : "campaign-badge-inactive"}`}
+                  >
+                    {campaign.active !== false ? "Active" : "Inactive"}
                   </span>
                 </div>
               </header>
@@ -110,27 +115,52 @@ export default function CampaignDetail({
               <div className="detail-body">
                 <section className="detail-section">
                   <h2>Description</h2>
-                  <p className="detail-description">{campaign.description || 'No description provided.'}</p>
+                  <p className="detail-description">
+                    {campaign.description || "No description provided."}
+                  </p>
                 </section>
 
                 <div className="detail-grid">
                   <div className="detail-stat">
                     <h3>Reward per Action</h3>
-                    <p className="stat-value">{campaign.rewardPerAction ?? 0} pts</p>
+                    <p className="stat-value">
+                      {campaign.rewardPerAction ?? 0} pts
+                    </p>
                   </div>
                   <div className="detail-stat">
                     <h3>Created On</h3>
-                    <p className="stat-value">{formatDate(campaign.createdAt)}</p>
+                    <p className="stat-value">
+                      {formatDate(campaign.createdAt)}
+                    </p>
                   </div>
                 </div>
-                
+
                 <section className="detail-cta">
                   <h3>Ready to participate?</h3>
-                  <p>Rewards are issued automatically through the Stellar Soroban smart contract assigned to this campaign.</p>
-                  <button className="btn btn-primary" disabled>
-                    Register for Campaign
-                  </button>
-                  <p className="cta-note">On-chain registration coming soon.</p>
+                  <p>
+                    Rewards are issued automatically through the Stellar Soroban
+                    smart contract assigned to this campaign.
+                  </p>
+
+                  {walletAddress ? (
+                    <RegisterCampaign walletAddress={walletAddress} />
+                  ) : (
+                    <div>
+                      <button
+                        className="btn btn-primary"
+                        onClick={onConnectWallet}
+                        disabled={isWalletLoading}
+                      >
+                        {isWalletLoading
+                          ? "Connecting…"
+                          : "Connect wallet to register"}
+                      </button>
+                      <p className="cta-note">
+                        Connect your Freighter wallet to register for this
+                        campaign.
+                      </p>
+                    </div>
+                  )}
                 </section>
               </div>
             </article>

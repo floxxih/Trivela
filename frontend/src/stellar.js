@@ -28,7 +28,7 @@ export {
 } from './config';
 
 export const HORIZON_URL =
-    import.meta.env.VITE_HORIZON_URL || 'https://horizon-testnet.stellar.org';
+  import.meta.env.VITE_HORIZON_URL || 'https://horizon-testnet.stellar.org';
 
 /* ---------- Freighter helpers ---------- */
 
@@ -61,7 +61,9 @@ export async function getWalletAddress() {
 
   const access = await freighterApi.requestAccess();
   if (access.error) throw new Error(access.error);
-  if (!access.address) throw new Error('Freighter did not return a wallet address.');
+  if (!access.address) {
+    throw new Error('Freighter did not return a wallet address.');
+  }
 
   return access.address;
 }
@@ -116,7 +118,9 @@ export async function fetchWalletBalance(walletAddress) {
   );
 
   if (!response.ok) {
-    throw new Error(`Horizon returned ${response.status} while loading the wallet balance.`);
+    throw new Error(
+      `Horizon returned ${response.status} while loading the wallet balance.`,
+    );
   }
 
   const account = await response.json();
@@ -173,6 +177,7 @@ export async function submitClaimTransaction(walletAddress, amount) {
   const server = createSorobanServer();
   const sourceAccount = await server.getAccount(walletAddress);
 
+  /* 1. Build the transaction */
   const tx = new TransactionBuilder(sourceAccount, {
     fee: BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
@@ -187,8 +192,10 @@ export async function submitClaimTransaction(walletAddress, amount) {
     .setTimeout(30)
     .build();
 
+  /* 2. Simulate & prepare (assembles auth + resources) */
   const preparedTx = await server.prepareTransaction(tx);
 
+  /* 3. Sign with Freighter */
   const freighterApi = getFreighterApi();
   const signResult = await freighterApi.signTransaction(preparedTx.toXDR(), {
     networkPassphrase: NETWORK_PASSPHRASE,
@@ -197,16 +204,21 @@ export async function submitClaimTransaction(walletAddress, amount) {
 
   if (signResult.error) throw new Error(signResult.error);
 
+  /* 4. Re-construct the signed transaction */
   const signedTx = TransactionBuilder.fromXDR(
     signResult.signedTxXdr,
     NETWORK_PASSPHRASE,
   );
 
+  /* 5. Submit */
   const sendResult = await server.sendTransaction(signedTx);
   if (sendResult.status === 'ERROR') {
-    throw new Error(sendResult.errorResult?.toString() || 'Transaction submission failed.');
+    throw new Error(
+      sendResult.errorResult?.toString() || 'Transaction submission failed.',
+    );
   }
 
+  /* 6. Poll until finalised */
   let getResult;
   for (let i = 0; i < TX_POLL_MAX_ATTEMPTS; i++) {
     // eslint-disable-next-line no-await-in-loop
@@ -217,7 +229,9 @@ export async function submitClaimTransaction(walletAddress, amount) {
   }
 
   if (!getResult || getResult.status === 'NOT_FOUND') {
-    throw new Error('Transaction was submitted but could not be confirmed in time.');
+    throw new Error(
+      'Transaction was submitted but could not be confirmed in time.',
+    );
   }
 
   if (getResult.status === 'FAILED') {
@@ -263,6 +277,14 @@ export async function checkParticipantStatus(walletAddress) {
   return scValToNative(simulation.result.retval);
 }
 
+/**
+ * Build, sign (Freighter), submit, and poll a `register(participant, leaf, proof)` call
+ * on the campaign contract.
+ *
+ * Returns `{ hash: string, alreadyRegistered: boolean }`.
+ * - `alreadyRegistered === false` means the user was freshly registered.
+ * - `alreadyRegistered === true` means they were already registered (contract returned false).
+ */
 export async function submitRegisterTransaction(walletAddress) {
   const contract = getCampaignContract();
   if (!contract) {
@@ -272,6 +294,11 @@ export async function submitRegisterTransaction(walletAddress) {
   const server = createSorobanServer();
   const sourceAccount = await server.getAccount(walletAddress);
 
+  // For open registration, pass empty leaf and proof
+  const emptyLeaf = new Uint8Array(32); // 32 bytes of zeros
+  const emptyProof = []; // Empty proof array
+
+  /* 1. Build */
   const tx = new TransactionBuilder(sourceAccount, {
     fee: BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
@@ -280,13 +307,17 @@ export async function submitRegisterTransaction(walletAddress) {
       contract.call(
         'register',
         nativeToScVal(Address.fromString(walletAddress)),
+        nativeToScVal(emptyLeaf),
+        nativeToScVal(emptyProof),
       ),
     )
     .setTimeout(30)
     .build();
 
+  /* 2. Simulate & prepare */
   const preparedTx = await server.prepareTransaction(tx);
 
+  /* 3. Sign with Freighter */
   const freighterApi = getFreighterApi();
   const signResult = await freighterApi.signTransaction(preparedTx.toXDR(), {
     networkPassphrase: NETWORK_PASSPHRASE,
@@ -295,11 +326,13 @@ export async function submitRegisterTransaction(walletAddress) {
 
   if (signResult.error) throw new Error(signResult.error);
 
+  /* 4. Re-construct signed transaction */
   const signedTx = TransactionBuilder.fromXDR(
     signResult.signedTxXdr,
     NETWORK_PASSPHRASE,
   );
 
+  /* 5. Submit */
   const sendResult = await server.sendTransaction(signedTx);
   if (sendResult.status === 'ERROR') {
     throw new Error(
@@ -307,6 +340,7 @@ export async function submitRegisterTransaction(walletAddress) {
     );
   }
 
+  /* 6. Poll until finalised */
   let getResult;
   for (let i = 0; i < TX_POLL_MAX_ATTEMPTS; i++) {
     // eslint-disable-next-line no-await-in-loop
@@ -326,6 +360,7 @@ export async function submitRegisterTransaction(walletAddress) {
     throw new Error('Registration transaction failed on-chain.');
   }
 
+  // Contract returns true for a fresh registration, false if already registered.
   const wasNew = getResult.returnValue
     ? scValToNative(getResult.returnValue)
     : true;
