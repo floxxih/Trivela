@@ -21,6 +21,7 @@ pub enum Error {
     InsufficientBalance = 2,
     Unauthorized = 3,
     ContractPaused = 4,
+    CreditLimitExceeded = 5,
 }
 
 contractmeta!(
@@ -35,6 +36,7 @@ const METADATA: Symbol = symbol_short!("metadata");
 const PAUSED: Symbol = symbol_short!("paused");
 const CREDIT_EVENT: Symbol = symbol_short!("credit");
 const CLAIM_EVENT: Symbol = symbol_short!("claim");
+const MAX_CREDIT_PER_CALL: Symbol = symbol_short!("mxcredit");
 
 #[contract]
 pub struct RewardsContract;
@@ -67,7 +69,27 @@ impl RewardsContract {
         env.storage().instance().set(&CLAIMED, &0u64);
         env.storage().instance().set(&METADATA, &(name, symbol));
         env.storage().instance().set(&PAUSED, &false);
+        env.storage().instance().set(&MAX_CREDIT_PER_CALL, &0u64);
         Ok(())
+    }
+
+    /// Set maximum amount allowed per single credit call (admin only).
+    /// Set to 0 to disable the limit.
+    pub fn set_max_credit_per_call(env: Env, admin: Address, max_amount: u64) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        env.storage()
+            .instance()
+            .set(&MAX_CREDIT_PER_CALL, &max_amount);
+        env.storage().instance().extend_ttl(50, 100);
+        Ok(())
+    }
+
+    /// Get maximum amount allowed per single credit call (0 means unlimited).
+    pub fn max_credit_per_call(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .get(&MAX_CREDIT_PER_CALL)
+            .unwrap_or(0)
     }
 
     /// Get contract metadata (name and symbol).
@@ -87,6 +109,15 @@ impl RewardsContract {
     pub fn credit(env: Env, from: Address, user: Address, amount: u64) -> Result<u64, Error> {
         from.require_auth();
         ensure_not_paused(&env)?;
+
+        let max_credit_per_call: u64 = env
+            .storage()
+            .instance()
+            .get(&MAX_CREDIT_PER_CALL)
+            .unwrap_or(0);
+        if max_credit_per_call > 0 && amount > max_credit_per_call {
+            return Err(Error::CreditLimitExceeded);
+        }
 
         let key = (BALANCE, user.clone());
         let current: u64 = env.storage().instance().get(&key).unwrap_or(0);

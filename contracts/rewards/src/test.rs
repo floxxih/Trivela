@@ -5,6 +5,8 @@ extern crate std;
 use super::*;
 use soroban_sdk::testutils::{Address as _, Events as _};
 use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal};
+use soroban_sdk::{BytesN, Vec as SdkVec};
+use trivela_campaign_contract::{CampaignContract, CampaignContractClient};
 
 #[test]
 fn test_balance_empty() {
@@ -35,15 +37,18 @@ fn test_credit_and_balance_emits_event() {
     assert_eq!(new_balance, 100);
     assert_eq!(
         env.events().all(),
-        vec![&env, (
-            contract_id.clone(),
-            vec![
-                &env,
-                CREDIT_EVENT.into_val(&env),
-                user.clone().into_val(&env)
-            ],
-            100u64.into_val(&env)
-        )]
+        vec![
+            &env,
+            (
+                contract_id.clone(),
+                vec![
+                    &env,
+                    CREDIT_EVENT.into_val(&env),
+                    user.clone().into_val(&env)
+                ],
+                100u64.into_val(&env)
+            )
+        ]
     );
     assert_eq!(client.balance(&user), 100);
 }
@@ -65,11 +70,14 @@ fn test_claim_emits_event_and_updates_total_claimed() {
     assert_eq!(new_balance, 60);
     assert_eq!(
         env.events().all(),
-        vec![&env, (
-            contract_id.clone(),
-            vec![&env, CLAIM_EVENT.into_val(&env), user.into_val(&env)],
-            40u64.into_val(&env)
-        )]
+        vec![
+            &env,
+            (
+                contract_id.clone(),
+                vec![&env, CLAIM_EVENT.into_val(&env), user.into_val(&env)],
+                40u64.into_val(&env)
+            )
+        ]
     );
     assert_eq!(client.balance(&user), 60);
     assert_eq!(client.total_claimed(), 40);
@@ -174,7 +182,58 @@ fn test_uninitialized_access_returns_defaults() {
     let client = RewardsContractClient::new(&env, &contract_id);
     let user = Address::generate(&env);
 
-    assert_eq!(client.metadata(), (symbol_short!("Trivela"), symbol_short!("TVL")));
+    assert_eq!(
+        client.metadata(),
+        (symbol_short!("Trivela"), symbol_short!("TVL"))
+    );
     assert_eq!(client.balance(&user), 0);
     assert_eq!(client.total_claimed(), 0);
+}
+
+#[test]
+fn test_credit_respects_max_per_call() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, RewardsContract);
+    let client = RewardsContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    client.initialize(&admin, &symbol_short!("Trivela"), &symbol_short!("TVL"));
+
+    env.mock_all_auths();
+    client.set_max_credit_per_call(&admin, &100);
+
+    let result = client.try_credit(&admin, &user, &101);
+    assert_eq!(result, Err(Ok(Error::CreditLimitExceeded)));
+    assert_eq!(client.balance(&user), 0);
+}
+
+#[test]
+fn test_campaign_rewards_integration_flow() {
+    let env = Env::default();
+
+    let campaign_id = env.register_contract(None, CampaignContract);
+    let campaign = CampaignContractClient::new(&env, &campaign_id);
+
+    let rewards_id = env.register_contract(None, RewardsContract);
+    let rewards = RewardsContractClient::new(&env, &rewards_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    campaign.initialize(&admin);
+    rewards.initialize(&admin, &symbol_short!("Trivela"), &symbol_short!("TVL"));
+
+    env.mock_all_auths();
+    // No Merkle root configured — pass a dummy leaf and empty proof.
+    let dummy_leaf: BytesN<32> = BytesN::from_array(&env, &[0u8; 32]);
+    let empty_proof: SdkVec<BytesN<32>> = SdkVec::new(&env);
+    assert!(campaign.register(&user, &dummy_leaf, &empty_proof));
+
+    rewards.credit(&admin, &user, &120);
+    assert_eq!(rewards.balance(&user), 120);
+
+    rewards.claim(&user, &70);
+    assert_eq!(rewards.balance(&user), 50);
+    assert_eq!(rewards.total_claimed(), 70);
 }

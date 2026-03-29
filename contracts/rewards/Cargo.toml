@@ -7,14 +7,18 @@ rust-version = "1.75.0"
 description = "Trivela on-chain rewards and points contract"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 doctest = false
+
+[features]
+testutils = ["soroban-sdk/testutils"]
 
 [dependencies]
 soroban-sdk = "25.1"
 
 [dev-dependencies]
 soroban-sdk = { version = "25.1", features = ["testutils"] }
+trivela-campaign-contract = { path = "../campaign" }
 
 [profile.release]
 opt-level = "z"

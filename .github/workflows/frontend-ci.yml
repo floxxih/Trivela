@@ -37,6 +37,10 @@ jobs:
       - name: Build frontend
         run: npm run build --workspace=frontend
 
+      - name: Install Playwright browsers
+        if: steps.scripts.outputs.has_test == 'true'
+        run: npx playwright install --with-deps chromium
+
       - name: Lint frontend
         if: steps.scripts.outputs.has_lint == 'true'
         run: npm run lint --workspace=frontend
