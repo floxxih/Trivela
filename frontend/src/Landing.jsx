@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
+  apiUrl,
+  CAMPAIGN_CONTRACT_ID,
+  REWARDS_CONTRACT_ID,
+  SOROBAN_RPC_URL,
+  getCampaignContract,
+  getRewardsContract,
+} from './config';
+import {
   fetchRewardsBalance,
   formatPoints,
   normalizeError,
@@ -53,14 +61,15 @@ export default function Landing({
   const [points, setPoints] = useState(null);
   const [pointsError, setPointsError] = useState('');
   const [isPointsLoading, setIsPointsLoading] = useState(false);
+  const rewardsContract = getRewardsContract();
+  const campaignContract = getCampaignContract();
 
   useEffect(() => {
     const controller = new AbortController();
-    const api = import.meta.env.VITE_API_URL || '';
     setIsCampaignsLoading(true);
     setCampaignsError('');
 
-    fetch(`${api}/api/v1/campaigns?page=${campaignPage}&limit=${CAMPAIGNS_PER_PAGE}`, {
+    fetch(apiUrl(`/api/v1/campaigns?page=${campaignPage}&limit=${CAMPAIGNS_PER_PAGE}`), {
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -257,6 +266,21 @@ export default function Landing({
               </div>
               <h3>React frontend</h3>
               <p>Vite UI with Freighter wallet connection, paginated campaigns, and contract interactions.</p>
+            </article>
+          </div>
+          <div className="config-grid">
+            <article className="config-card">
+              <h3>Environment-driven wiring</h3>
+              <p>
+                Frontend API and Soroban targets are configured through Vite env values so each deployment
+                can point at its own backend, rewards contract, and campaign contract without code changes.
+              </p>
+              <ul className="config-list">
+                <li><strong>Campaigns API:</strong> {apiUrl('/api/v1/campaigns')}</li>
+                <li><strong>Soroban RPC:</strong> {SOROBAN_RPC_URL}</li>
+                <li><strong>Rewards contract:</strong> {rewardsContract ? REWARDS_CONTRACT_ID : 'Not configured'}</li>
+                <li><strong>Campaign contract:</strong> {campaignContract ? CAMPAIGN_CONTRACT_ID : 'Not configured'}</li>
+              </ul>
             </article>
           </div>
         </section>

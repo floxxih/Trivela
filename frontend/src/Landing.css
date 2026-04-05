@@ -514,6 +514,46 @@
   color: var(--text-muted);
 }
 
+.config-grid {
+  margin-top: 1.5rem;
+}
+
+.config-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.config-card h3 {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+}
+
+.config-card p {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+}
+
+.config-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.config-list li {
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.config-list strong {
+  color: var(--text);
+}
+
+/* ---- How it works ---- */
 .how {
   background: transparent;
 }
