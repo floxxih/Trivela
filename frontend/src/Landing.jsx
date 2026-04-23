@@ -51,6 +51,9 @@ export default function Landing({
   walletError,
   onConnectWallet,
   onDisconnectWallet,
+  rewardsPoints,
+  isRewardsPointsLoading,
+  onRefreshPoints,
 }) {
   const [campaigns, setCampaigns] = useState([]);
   const [campaignsError, setCampaignsError] = useState('');
@@ -58,10 +61,6 @@ export default function Landing({
   const [campaignPage, setCampaignPage] = useState(1);
   const [campaignRefreshKey, setCampaignRefreshKey] = useState(0);
   const [pagination, setPagination] = useState(() => getFallbackPagination([], 1));
-  const [points, setPoints] = useState(null);
-  const [pointsError, setPointsError] = useState('');
-  const [isPointsLoading, setIsPointsLoading] = useState(false);
-  const rewardsContract = getRewardsContract();
   const campaignContract = getCampaignContract();
 
   useEffect(() => {
@@ -111,35 +110,7 @@ export default function Landing({
     return () => controller.abort();
   }, [campaignPage, campaignRefreshKey]);
 
-  const loadPoints = async (address = walletAddress) => {
-    if (!address) {
-      setPoints(null);
-      setPointsError('Connect a wallet to load your rewards balance.');
-      return;
-    }
-
-    setIsPointsLoading(true);
-    setPointsError('');
-
-    try {
-      const balance = await fetchRewardsBalance(address);
-      setPoints(formatPoints(balance));
-    } catch (error) {
-      setPoints(null);
-      setPointsError(normalizeError(error));
-    } finally {
-      setIsPointsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (walletAddress) {
-      loadPoints(walletAddress);
-    } else {
-      setPoints(null);
-      setPointsError('');
-    }
-  }, [walletAddress]);
+  // Removed local loadPoints effect as it is now handled in App.jsx
 
   return (
     <div className="landing">
@@ -199,7 +170,7 @@ export default function Landing({
 
             <div className="rewards-balance" aria-live="polite">
               <span className="rewards-balance-label">Available points</span>
-              <strong>{points ?? '—'}</strong>
+              <strong>{isRewardsPointsLoading ? '…' : (rewardsPoints || '—')}</strong>
             </div>
 
             <div className="rewards-actions">
@@ -215,10 +186,10 @@ export default function Landing({
               <button
                 type="button"
                 className="btn btn-secondary btn-button"
-                onClick={() => loadPoints()}
-                disabled={!walletAddress || isPointsLoading}
+                onClick={onRefreshPoints}
+                disabled={!walletAddress || isRewardsPointsLoading}
               >
-                {isPointsLoading ? 'Refreshing…' : 'Refresh points'}
+                {isRewardsPointsLoading ? 'Refreshing…' : 'Refresh points'}
               </button>
             </div>
 
@@ -228,14 +199,17 @@ export default function Landing({
               </p>
             )}
 
-            {(pointsError || walletError) && <p className="rewards-error" role="alert">{pointsError || walletError}</p>}
+            {(rewardsPoints === 'Unavailable' || walletError) && (
+              <p className="rewards-error" role="alert">
+                {walletError || 'Unable to load your rewards balance. Check your connection or contract deployment.'}
+              </p>
+            )}
 
             {walletAddress && (
               <ClaimRewards
                 walletAddress={walletAddress}
-                onClaimSuccess={(newBalance) => {
-                  if (newBalance !== null) setPoints(newBalance);
-                  else loadPoints();
+                onClaimSuccess={() => {
+                  onRefreshPoints();
                 }}
               />
             )}

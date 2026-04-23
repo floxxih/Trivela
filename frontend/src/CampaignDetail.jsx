@@ -13,10 +13,13 @@ export default function CampaignDetail({
   onToggleTheme,
   walletAddress,
   walletBalance,
+  rewardsPoints,
   isWalletLoading,
   isWalletBalanceLoading,
+  isRewardsPointsLoading,
   onConnectWallet,
   onDisconnectWallet,
+  onRefreshPoints,
 }) {
   const { id } = useParams();
   const [campaign, setCampaign] = useState(null);
