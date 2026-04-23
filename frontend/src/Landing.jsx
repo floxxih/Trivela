@@ -62,6 +62,7 @@ export default function Landing({
   const [campaignRefreshKey, setCampaignRefreshKey] = useState(0);
   const [pagination, setPagination] = useState(() => getFallbackPagination([], 1));
   const campaignContract = getCampaignContract();
+  const rewardsContract = getRewardsContract();
 
   useEffect(() => {
     const controller = new AbortController();
