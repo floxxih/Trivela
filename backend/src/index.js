@@ -131,7 +131,6 @@ export function createApp(options = {}) {
   const rewardsContractId = readOptionalConfigValue(options, 'REWARDS_CONTRACT_ID');
   const campaignContractId = readOptionalConfigValue(options, 'CAMPAIGN_CONTRACT_ID');
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  const campaigns = cloneCampaigns(options.campaigns ?? defaultCampaigns());
   const allowedOrigins = parseAllowedOrigins(corsAllowedOrigins);
   const rateLimitWindowMs = normalizePositiveInteger(
     options.rateLimit?.windowMs ?? process.env.RATE_LIMIT_WINDOW_MS,
@@ -145,6 +144,7 @@ export function createApp(options = {}) {
   // When an explicit campaigns seed is provided (legacy test path), use it;
   // otherwise fall back to the default "Welcome Campaign" row.
   const seed = options.campaigns ?? defaultSeed();
+  const dbPath = options.dbPath ?? process.env.DB_PATH;
   const db = createDb(dbPath, seed);
 
   const app = express();
@@ -269,16 +269,12 @@ export function createApp(options = {}) {
 
     const { name, description, rewardPerAction } = req.body;
 
-    const campaign = {
-      id: nextCampaignId(campaigns),
+    const campaign = db.create({
       name,
       description: description || '',
-      active: true,
       rewardPerAction: rewardPerAction ?? 0,
-      createdAt: new Date().toISOString(),
-    };
+    });
 
-    campaigns.push(campaign);
     return res.status(201).json(campaign);
   }
 
@@ -296,8 +292,8 @@ export function createApp(options = {}) {
       });
     }
 
-    Object.assign(campaign, req.body, { id: campaign.id });
-    return res.json(campaign);
+    const updated = db.update(req.params.id, req.body);
+    return res.json(updated);
   }
 
   function deleteCampaign(req, res) {
