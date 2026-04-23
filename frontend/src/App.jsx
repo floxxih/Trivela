@@ -7,6 +7,8 @@ import {
   getWalletAddress,
   fetchWalletBalance,
   formatWalletBalance,
+  fetchRewardsBalance,
+  formatPoints,
   normalizeError,
 } from './stellar';
 
@@ -14,8 +16,10 @@ export default function App() {
   const [theme, setTheme] = useState(() => getPreferredTheme());
   const [walletAddress, setWalletAddress] = useState('');
   const [walletBalance, setWalletBalance] = useState('');
+  const [rewardsPoints, setRewardsPoints] = useState('');
   const [isWalletLoading, setIsWalletLoading] = useState(false);
   const [isWalletBalanceLoading, setIsWalletBalanceLoading] = useState(false);
+  const [isRewardsPointsLoading, setIsRewardsPointsLoading] = useState(false);
   const [walletError, setWalletError] = useState('');
 
   useEffect(() => {
@@ -33,11 +37,14 @@ export default function App() {
   const loadWalletBalance = async (address) => {
     if (!address) {
       setWalletBalance('');
+      setRewardsPoints('');
       return;
     }
 
     setIsWalletBalanceLoading(true);
+    setIsRewardsPointsLoading(true);
 
+    // 1. Load native XLM balance (Horizon)
     try {
       const balance = await fetchWalletBalance(address);
       setWalletBalance(formatWalletBalance(balance));
@@ -45,6 +52,19 @@ export default function App() {
       setWalletBalance('Unavailable');
     } finally {
       setIsWalletBalanceLoading(false);
+    }
+
+    // 2. Load rewards points (Soroban RPC)
+    try {
+      const points = await fetchRewardsBalance(address);
+      setRewardsPoints(formatPoints(points));
+    } catch (error) {
+      console.error('Failed to load rewards points:', error);
+      // We rely on normalizeError in components if they want more detail,
+      // but here we just mark it as unavailable for the global state.
+      setRewardsPoints('Unavailable');
+    } finally {
+      setIsRewardsPointsLoading(false);
     }
   };
 
@@ -68,6 +88,7 @@ export default function App() {
   const disconnectWallet = () => {
     setWalletAddress('');
     setWalletBalance('');
+    setRewardsPoints('');
     setWalletError('');
   };
 
@@ -81,11 +102,14 @@ export default function App() {
             onToggleTheme={toggleTheme}
             walletAddress={walletAddress}
             walletBalance={walletBalance}
+            rewardsPoints={rewardsPoints}
             isWalletLoading={isWalletLoading}
             isWalletBalanceLoading={isWalletBalanceLoading}
+            isRewardsPointsLoading={isRewardsPointsLoading}
             walletError={walletError}
             onConnectWallet={connectWallet}
             onDisconnectWallet={disconnectWallet}
+            onRefreshPoints={() => loadWalletBalance(walletAddress)}
           />
         }
       />
@@ -97,10 +121,13 @@ export default function App() {
             onToggleTheme={toggleTheme}
             walletAddress={walletAddress}
             walletBalance={walletBalance}
+            rewardsPoints={rewardsPoints}
             isWalletLoading={isWalletLoading}
             isWalletBalanceLoading={isWalletBalanceLoading}
+            isRewardsPointsLoading={isRewardsPointsLoading}
             onConnectWallet={connectWallet}
             onDisconnectWallet={disconnectWallet}
+            onRefreshPoints={() => loadWalletBalance(walletAddress)}
           />
         }
       />

@@ -148,12 +148,23 @@ App: http://localhost:5173 (proxies `/api` and `/api/v1` to the backend).
 ## Testing
 
 ```bash
+# All tests (Contracts + Backend + Frontend E2E)
+npm run test
+
 # Rust contracts
 cargo test --workspace
 
-# Backend (when tests exist)
+# Backend tests
 npm run test:backend
+
+# Frontend E2E tests (Playwright)
+# 1. Build the frontend first (required for `npm run preview`)
+npm run build:frontend
+# 2. Run the tests
+npm run test:frontend
 ```
+
+The frontend E2E tests use **Playwright**. They run against a local preview server (`npm run preview`). Ensure the backend is running if you want the tests to hit real API endpoints, otherwise they will show the "empty state" as expected in a isolated environment.
 
 ---
 
