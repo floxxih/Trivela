@@ -318,8 +318,6 @@ export function createApp(options = {}) {
         : undefined;
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const items = db.getAll({ active: activeFilter, q });
-    res.json(paginateItems(items, req.query));
-    const items = db.getAll({ active: activeFilter });
     const payload = paginateItems(items, req.query);
     shortCache.set(cacheKey, {
       expiresAt: Date.now() + shortCacheTtlMs,

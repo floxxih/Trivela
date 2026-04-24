@@ -303,6 +303,9 @@ fn test_schema_version_and_migrate_entrypoint() {
 
     let unauthorized = client.try_migrate(&other, &1);
     assert_eq!(unauthorized, Err(Ok(Error::Unauthorized)));
+}
+
+#[test]
 fn test_participant_count_increments_on_new_register_only() {
     let (env, client) = setup();
     let admin = Address::generate(&env);
