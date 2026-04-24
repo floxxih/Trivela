@@ -22,6 +22,7 @@ pub enum Error {
     Unauthorized = 3,
     ContractPaused = 4,
     CreditLimitExceeded = 5,
+    UnsupportedMigration = 6,
     InvalidMultiplier = 6,
 }
 
@@ -38,6 +39,8 @@ const PAUSED: Symbol = symbol_short!("paused");
 const CREDIT_EVENT: Symbol = symbol_short!("credit");
 const CLAIM_EVENT: Symbol = symbol_short!("claim");
 const MAX_CREDIT_PER_CALL: Symbol = symbol_short!("mxcredit");
+const SCHEMA_VERSION: Symbol = symbol_short!("schema_v");
+const CURRENT_SCHEMA_VERSION: u32 = 1;
 const CAMPAIGN_MULTIPLIER: Symbol = symbol_short!("mult");
 const BPS_DENOMINATOR: u128 = 10_000;
 
@@ -73,7 +76,34 @@ impl RewardsContract {
         env.storage().instance().set(&METADATA, &(name, symbol));
         env.storage().instance().set(&PAUSED, &false);
         env.storage().instance().set(&MAX_CREDIT_PER_CALL, &0u64);
+        env.storage()
+            .instance()
+            .set(&SCHEMA_VERSION, &CURRENT_SCHEMA_VERSION);
         Ok(())
+    }
+
+    /// Returns the active storage schema version for this contract.
+    pub fn schema_version(env: Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&SCHEMA_VERSION)
+            .unwrap_or(CURRENT_SCHEMA_VERSION)
+    }
+
+    /// Migration entrypoint for future schema changes.
+    ///
+    /// Current behavior is intentionally idempotent for version `1`, so operational
+    /// scripts can call this safely during deployments/upgrades.
+    pub fn migrate(env: Env, admin: Address, target_version: u32) -> Result<u32, Error> {
+        require_admin(&env, &admin)?;
+        if target_version != CURRENT_SCHEMA_VERSION {
+            return Err(Error::UnsupportedMigration);
+        }
+        env.storage()
+            .instance()
+            .set(&SCHEMA_VERSION, &CURRENT_SCHEMA_VERSION);
+        env.storage().instance().extend_ttl(50, 100);
+        Ok(CURRENT_SCHEMA_VERSION)
     }
 
     /// Set maximum amount allowed per single credit call (admin only).

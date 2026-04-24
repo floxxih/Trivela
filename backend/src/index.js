@@ -20,6 +20,7 @@ const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 60;
 const DEFAULT_SHORT_CACHE_TTL_MS = 5_000;
 const LEGACY_API_PREFIX = '/api';
 const API_V1_PREFIX = '/api/v1';
+const CONTRACT_ID_PATTERN = /^C[A-Z2-7]{55}$/;
 
 function normalizePositiveInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -76,6 +77,17 @@ function readOptionalConfigValue(options, envKey) {
   return typeof fromEnv === 'string' ? fromEnv : '';
 }
 
+function validateContractId(value, label) {
+  if (!value) {
+    return '';
+  }
+  const normalized = value.trim();
+  if (!CONTRACT_ID_PATTERN.test(normalized)) {
+    throw new Error(`${label} must be a valid Stellar contract ID`);
+  }
+  return normalized;
+}
+
 function validateCampaignPayload(payload, { partial = false } = {}) {
   const errors = [];
 
@@ -117,8 +129,14 @@ export function createApp(options = {}) {
     options.corsAllowedOrigins ?? process.env.CORS_ALLOWED_ORIGINS ?? process.env.CORS_ORIGIN;
   const stellarNetwork = options.stellarNetwork ?? process.env.STELLAR_NETWORK ?? 'testnet';
   const sorobanRpcUrl = options.sorobanRpcUrl ?? process.env.SOROBAN_RPC_URL ?? DEFAULT_RPC_URL;
-  const rewardsContractId = readOptionalConfigValue(options, 'REWARDS_CONTRACT_ID');
-  const campaignContractId = readOptionalConfigValue(options, 'CAMPAIGN_CONTRACT_ID');
+  const rewardsContractId = validateContractId(
+    readOptionalConfigValue(options, 'REWARDS_CONTRACT_ID'),
+    'REWARDS_CONTRACT_ID',
+  );
+  const campaignContractId = validateContractId(
+    readOptionalConfigValue(options, 'CAMPAIGN_CONTRACT_ID'),
+    'CAMPAIGN_CONTRACT_ID',
+  );
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   const allowedOrigins = parseAllowedOrigins(corsAllowedOrigins);
   const rateLimitWindowMs = normalizePositiveInteger(
@@ -251,6 +269,9 @@ export function createApp(options = {}) {
       req.query.active !== undefined
         ? req.query.active === 'true'
         : undefined;
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const items = db.getAll({ active: activeFilter, q });
+    res.json(paginateItems(items, req.query));
     const items = db.getAll({ active: activeFilter });
     const payload = paginateItems(items, req.query);
     shortCache.set(cacheKey, {

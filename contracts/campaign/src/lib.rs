@@ -39,6 +39,7 @@ pub enum Error {
     CapacityReached = 102,
     CampaignInactive = 103,
     NotInAllowlist = 104,
+    UnsupportedMigration = 105,
     InvalidAdminNonce = 105,
 }
 
@@ -52,6 +53,8 @@ const END_TIME: Symbol = symbol_short!("end");
 const MAX_CAP: Symbol = symbol_short!("maxcap");
 const PARTICIPANT_COUNT: Symbol = symbol_short!("count");
 const MERKLE_ROOT: Symbol = symbol_short!("mkroot");
+const SCHEMA_VERSION: Symbol = symbol_short!("schema_v");
+const CURRENT_SCHEMA_VERSION: u32 = 1;
 const ADMIN_NONCE: Symbol = symbol_short!("anonce");
 
 #[contract]
@@ -110,9 +113,40 @@ impl CampaignContract {
         env.storage().instance().set(&START_TIME, &0u64);
         env.storage().instance().set(&END_TIME, &u64::MAX);
         env.storage().instance().set(&PARTICIPANT_COUNT, &0u64);
+        env.storage()
+            .instance()
+            .set(&SCHEMA_VERSION, &CURRENT_SCHEMA_VERSION);
         env.storage().instance().set(&ADMIN_NONCE, &0u64);
         env.storage().instance().extend_ttl(50, 100);
         Ok(())
+    }
+
+    /// Returns the active storage schema version for this contract.
+    pub fn schema_version(env: Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&SCHEMA_VERSION)
+            .unwrap_or(CURRENT_SCHEMA_VERSION)
+    }
+
+    /// Migration entrypoint for future schema transitions.
+    ///
+    /// For now, version `1` is the only supported schema and this function
+    /// serves as an idempotent migration hook for upgrade workflows.
+    pub fn migrate(env: Env, admin: Address, target_version: u32) -> Result<u32, Error> {
+        admin.require_auth();
+        let stored: Address = env.storage().instance().get(&ADMIN).unwrap();
+        if stored != admin {
+            return Err(Error::Unauthorized);
+        }
+        if target_version != CURRENT_SCHEMA_VERSION {
+            return Err(Error::UnsupportedMigration);
+        }
+        env.storage()
+            .instance()
+            .set(&SCHEMA_VERSION, &CURRENT_SCHEMA_VERSION);
+        env.storage().instance().extend_ttl(50, 100);
+        Ok(CURRENT_SCHEMA_VERSION)
     }
 
     /// Set registration time window (admin only).
