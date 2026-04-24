@@ -240,7 +240,6 @@ fn test_campaign_rewards_integration_flow() {
 
 #[test]
 fn test_schema_version_and_migrate_entrypoint() {
-fn test_campaign_multiplier_applies_to_credit() {
     let env = Env::default();
     let contract_id = env.register_contract(None, RewardsContract);
     let client = RewardsContractClient::new(&env, &contract_id);
@@ -260,6 +259,14 @@ fn test_campaign_multiplier_applies_to_credit() {
 
     let unauthorized = client.try_migrate(&other, &1);
     assert_eq!(unauthorized, Err(Ok(Error::Unauthorized)));
+}
+
+#[test]
+fn test_campaign_multiplier_applies_to_credit() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, RewardsContract);
+    let client = RewardsContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
     let user = Address::generate(&env);
     client.initialize(&admin, &symbol_short!("Trivela"), &symbol_short!("TVL"));
 
