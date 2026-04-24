@@ -339,3 +339,37 @@ test('GET /api/v1/campaigns without active param returns all campaigns', async (
     await stopTestServer(server);
   }
 });
+
+test('GET /api/v1/indexer/cursor exposes cursor state for indexers', async () => {
+  const { server, baseUrl } = await startTestServer({
+    initialIndexerCursor: 'ledger:123:event:8',
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/indexer/cursor`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.cursor, 'ledger:123:event:8');
+    assert.equal(typeof payload.updatedAt, 'string');
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('campaign list endpoint returns cache headers with short TTL cache', async () => {
+  const { server, baseUrl } = await startTestServer({
+    shortCacheTtlMs: 10_000,
+  });
+
+  try {
+    const first = await fetch(`${baseUrl}/api/v1/campaigns`);
+    assert.equal(first.status, 200);
+    assert.equal(first.headers.get('x-cache'), 'MISS');
+
+    const second = await fetch(`${baseUrl}/api/v1/campaigns`);
+    assert.equal(second.status, 200);
+    assert.equal(second.headers.get('x-cache'), 'HIT');
+  } finally {
+    await stopTestServer(server);
+  }
+});
