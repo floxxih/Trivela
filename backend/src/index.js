@@ -119,6 +119,15 @@ function validateCampaignPayload(payload, { partial = false } = {}) {
     errors.push('active must be a boolean when provided');
   }
 
+  for (const field of ['startDate', 'endDate']) {
+    if (Object.hasOwn(payload, field)) {
+      const val = payload[field];
+      if (val !== null && (typeof val !== 'string' || Number.isNaN(Date.parse(val)))) {
+        errors.push(`${field} must be an ISO 8601 date string or null when provided`);
+      }
+    }
+  }
+
   return errors;
 }
 
@@ -352,11 +361,13 @@ export function createApp(options = {}) {
       });
     }
 
-    const { name, description, rewardPerAction } = req.body;
+    const { name, description, rewardPerAction, startDate, endDate } = req.body;
     const campaign = campaignRepository.create({
       name,
       description: description || '',
       rewardPerAction: rewardPerAction ?? 0,
+      startDate: startDate ?? null,
+      endDate: endDate ?? null,
     });
     shortCache.clear();
     return res.status(201).json(campaign);
@@ -371,7 +382,16 @@ export function createApp(options = {}) {
       });
     }
 
-    const campaign = campaignRepository.update(req.params.id, req.body);
+    const { name, description, active, rewardPerAction, startDate, endDate } = req.body;
+    const updateFields = {};
+    if (name !== undefined) updateFields.name = name;
+    if (description !== undefined) updateFields.description = description;
+    if (active !== undefined) updateFields.active = active;
+    if (rewardPerAction !== undefined) updateFields.rewardPerAction = rewardPerAction;
+    if (startDate !== undefined) updateFields.startDate = startDate;
+    if (endDate !== undefined) updateFields.endDate = endDate;
+
+    const campaign = campaignRepository.update(req.params.id, updateFields);
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
     }

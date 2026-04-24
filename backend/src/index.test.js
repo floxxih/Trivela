@@ -35,6 +35,9 @@ function campaignShapeAssertions(campaign) {
   assert.equal(typeof campaign.active, 'boolean');
   assert.equal(typeof campaign.rewardPerAction, 'number');
   assert.equal(typeof campaign.createdAt, 'string');
+  assert.ok(['active', 'upcoming', 'ended'].includes(campaign.status), `unexpected status: ${campaign.status}`);
+  assert.ok(campaign.startDate === null || typeof campaign.startDate === 'string');
+  assert.ok(campaign.endDate === null || typeof campaign.endDate === 'string');
 }
 
 test('GET /api/v1 exposes versioning details and legacy compatibility guidance', async () => {
@@ -501,6 +504,81 @@ test('GET /api/v1/indexer/cursor exposes cursor state for indexers', async () =>
     const payload = await response.json();
     assert.equal(payload.cursor, 'ledger:123:event:8');
     assert.equal(typeof payload.updatedAt, 'string');
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('POST /api/v1/campaigns accepts startDate and endDate and returns computed status', async () => {
+  const future = new Date(Date.now() + 86_400_000).toISOString();
+  const past = new Date(Date.now() - 86_400_000).toISOString();
+  const { server, baseUrl } = await startTestServer();
+
+  try {
+    const upcomingResp = await fetch(`${baseUrl}/api/v1/campaigns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Future Campaign', rewardPerAction: 5, startDate: future }),
+    });
+    assert.equal(upcomingResp.status, 201);
+    const upcoming = await upcomingResp.json();
+    assert.equal(upcoming.status, 'upcoming');
+    assert.equal(upcoming.startDate, future);
+    assert.equal(upcoming.endDate, null);
+
+    const endedResp = await fetch(`${baseUrl}/api/v1/campaigns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Past Campaign', rewardPerAction: 5, endDate: past }),
+    });
+    assert.equal(endedResp.status, 201);
+    const ended = await endedResp.json();
+    assert.equal(ended.status, 'ended');
+
+    const activeResp = await fetch(`${baseUrl}/api/v1/campaigns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Live Campaign', rewardPerAction: 5, startDate: past, endDate: future }),
+    });
+    assert.equal(activeResp.status, 201);
+    const active = await activeResp.json();
+    assert.equal(active.status, 'active');
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('POST /api/v1/campaigns rejects invalid date strings', async () => {
+  const { server, baseUrl } = await startTestServer();
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/campaigns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Bad Dates', rewardPerAction: 5, startDate: 'not-a-date' }),
+    });
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.ok(body.details.some((d) => /startDate/.test(d)));
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('PUT /api/v1/campaigns/:id can update startDate and endDate', async () => {
+  const future = new Date(Date.now() + 86_400_000).toISOString();
+  const { server, baseUrl } = await startTestServer();
+
+  try {
+    const resp = await fetch(`${baseUrl}/api/v1/campaigns/1`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate: future }),
+    });
+    assert.equal(resp.status, 200);
+    const updated = await resp.json();
+    assert.equal(updated.startDate, future);
+    assert.equal(updated.status, 'upcoming');
   } finally {
     await stopTestServer(server);
   }
