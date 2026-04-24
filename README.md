@@ -35,6 +35,7 @@ Trivela/
 ## Architecture
 
 For a quick system map (diagram, trust boundaries, and end-to-end data flows), see [`docs/ARCHITECTURE_OVERVIEW.md`](docs/ARCHITECTURE_OVERVIEW.md).
+For the supported Stellar testnet/mainnet presets and runtime config flow, see [`docs/STELLAR_NETWORKS.md`](docs/STELLAR_NETWORKS.md).
 
 ---
 
@@ -198,6 +199,17 @@ The frontend E2E tests use **Playwright**. They run against a local preview serv
 
 ---
 
+## Maintainer automation
+
+Sync the shared label taxonomy with GitHub CLI:
+
+```bash
+gh auth login
+npm run labels:sync -- --repo FinesseStudioLab/Trivela
+```
+
+The taxonomy lives in [`scripts/github-labels.json`](scripts/github-labels.json) and the sync script is idempotent, so re-running it updates colors/descriptions instead of failing.
+
 ## Creating the 50 contributor issues (maintainers)
 
 After the repo is pushed, create labels and open all 50 issues in GitHub in one go:
@@ -206,7 +218,7 @@ After the repo is pushed, create labels and open all 50 issues in GitHub in one 
 node scripts/create-github-issues.js
 ```
 
-This reads `PAT` from `.env.local`, creates the repo labels, then creates each issue from `docs/issues-data.json`. Requires Node 18+ and a PAT with `repo` scope.
+This reads `PAT` from `.env.local`, creates issues from `docs/issues-data.json`, and can still be used for bulk issue creation. For labels, prefer `npm run labels:sync` so maintainers can rely on `gh auth` instead of PAT-based automation.
 
 ## Contributing
 

@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { submitClaimTransaction, normalizeError } from './stellar';
+import { submitClaimTransaction, normalizeError, getStellarNetwork } from './stellar';
 
 /**
  * ClaimRewards — lets the user enter a points amount, sign a Soroban
@@ -21,6 +21,7 @@ export default function ClaimRewards({ walletAddress, onClaimSuccess }) {
   const headingId = useId();
   const feedbackId = useId();
   const feedbackDescribedBy = txHash || claimError ? feedbackId : undefined;
+  const stellarNetwork = getStellarNetwork();
 
   const parsedAmount = Number(amount);
   const isValid = Number.isInteger(parsedAmount) && parsedAmount > 0;
@@ -88,7 +89,7 @@ export default function ClaimRewards({ walletAddress, onClaimSuccess }) {
         <p id={feedbackId} className="claim-success" role="status" aria-live="polite">
           ✓ Claimed successfully —{' '}
           <a
-            href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
+            href={`https://stellar.expert/explorer/${stellarNetwork}/tx/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
           >

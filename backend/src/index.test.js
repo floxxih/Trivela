@@ -164,6 +164,89 @@ test('createApp rejects invalid contract IDs in configuration', () => {
     () => createApp({ CAMPAIGN_CONTRACT_ID: 'GABC' }),
     /CAMPAIGN_CONTRACT_ID must be a valid Stellar contract ID/,
   );
+
+  assert.throws(
+    () => createApp({ stellarNetwork: 'pubnet' }),
+    /Unsupported STELLAR_NETWORK "pubnet"/,
+  );
+});
+
+test('GET /api/v1/config exposes explicit stellar network metadata', async () => {
+  const { server, baseUrl } = await startTestServer({
+    stellarNetwork: 'mainnet',
+    REWARDS_CONTRACT_ID: 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4',
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/config`);
+    assert.equal(response.status, 200);
+
+    const payload = await response.json();
+    assert.equal(payload.stellar.network, 'mainnet');
+    assert.equal(payload.stellar.networkPassphrase, 'Public Global Stellar Network ; September 2015');
+    assert.equal(payload.stellar.sorobanRpcUrl, 'https://soroban-mainnet.stellar.org');
+    assert.equal(payload.stellar.horizonUrl, 'https://horizon.stellar.org');
+    assert.equal(
+      payload.contracts.rewards,
+      'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4',
+    );
+    assert.equal(payload.contracts.campaign, null);
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('createApp supports injected campaign repositories', async () => {
+  const calls = [];
+  const repository = {
+    list(filters) {
+      calls.push(['list', filters]);
+      return [
+        {
+          id: '99',
+          name: 'Injected Campaign',
+          description: 'From repository stub',
+          active: true,
+          rewardPerAction: 12,
+          createdAt: '2026-04-24T00:00:00.000Z',
+        },
+      ];
+    },
+    getById(id) {
+      calls.push(['getById', id]);
+      return undefined;
+    },
+    create(input) {
+      calls.push(['create', input]);
+      return {
+        id: '100',
+        active: true,
+        createdAt: '2026-04-24T00:00:00.000Z',
+        ...input,
+      };
+    },
+    update(id, input) {
+      calls.push(['update', id, input]);
+      return undefined;
+    },
+    delete(id) {
+      calls.push(['delete', id]);
+      return false;
+    },
+  };
+  const { server, baseUrl } = await startTestServer({
+    campaignRepository: repository,
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/campaigns?q=injected`);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.data[0].id, '99');
+    assert.deepEqual(calls[0], ['list', { active: undefined, q: 'injected' }]);
+  } finally {
+    await stopTestServer(server);
+  }
 });
 
 test('GET /api/v1/campaigns supports text search with q parameter', async () => {

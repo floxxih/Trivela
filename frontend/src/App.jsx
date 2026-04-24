@@ -4,6 +4,7 @@ import Landing from './Landing';
 import CampaignDetail from './CampaignDetail';
 import AdminCampaigns from './AdminCampaigns';
 import { applyTheme, getPreferredTheme, THEME_STORAGE_KEY } from './theme';
+import { getRuntimeConfig, initializeRuntimeConfig } from './config';
 import {
   getWalletAddress,
   fetchWalletBalance,
@@ -16,6 +17,7 @@ import { logSafeEvent } from './lib/safeAnalytics';
 
 export default function App() {
   const [theme, setTheme] = useState(() => getPreferredTheme());
+  const [runtimeConfig, setRuntimeConfig] = useState(() => getRuntimeConfig());
   const [walletAddress, setWalletAddress] = useState('');
   const [walletBalance, setWalletBalance] = useState('');
   const [rewardsPoints, setRewardsPoints] = useState('');
@@ -31,6 +33,26 @@ export default function App() {
       window.localStorage.setItem(THEME_STORAGE_KEY, theme);
     }
   }, [theme]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    initializeRuntimeConfig()
+      .then((nextConfig) => {
+        if (!cancelled) {
+          setRuntimeConfig(nextConfig);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRuntimeConfig(getRuntimeConfig());
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const toggleTheme = () => {
     setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'));
@@ -102,6 +124,7 @@ export default function App() {
         path="/"
         element={
           <Landing
+            runtimeConfig={runtimeConfig}
             theme={theme}
             onToggleTheme={toggleTheme}
             walletAddress={walletAddress}

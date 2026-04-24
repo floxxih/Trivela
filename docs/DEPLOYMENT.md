@@ -18,7 +18,9 @@ This guide covers deploying Trivela (backend, frontend, and smart contracts) to 
 | ------------------------- | -------- | ------- | ---------------------------------------------------------- | -------------------------------------- |
 | `PORT`                    | No       | `3001`  | `8080`                                                     | Server port                            |
 | `STELLAR_NETWORK`         | Yes      | —       | `testnet` or `mainnet`                                     | Stellar network                        |
-| `SOROBAN_RPC_URL`         | Yes      | —       | `https://soroban-mainnet.stellar.org`                      | Soroban RPC endpoint                   |
+| `SOROBAN_RPC_URL`         | No       | preset  | `https://soroban-mainnet.stellar.org`                      | Soroban RPC override for the network   |
+| `HORIZON_URL`             | No       | preset  | `https://horizon.stellar.org`                              | Horizon override for the network       |
+| `STELLAR_NETWORK_PASSPHRASE` | No    | preset  | `Public Global Stellar Network ; September 2015`           | Passphrase override for the network    |
 | `CORS_ALLOWED_ORIGINS`    | No       | —       | `https://app.example.com,https://admin.example.com`        | Comma-separated allowed origins        |
 | `CORS_ORIGIN`             | No       | —       | `https://app.example.com`                                  | Legacy single-origin CORS (fallback)   |
 | `TRIVELA_API_KEY`         | No       | —       | `sk_prod_abc123...`                                        | API key for write endpoints (optional) |
@@ -32,8 +34,10 @@ This guide covers deploying Trivela (backend, frontend, and smart contracts) to 
 | Variable                          | Required | Default | Example                                                    | Notes                     |
 | --------------------------------- | -------- | ------- | ---------------------------------------------------------- | ------------------------- |
 | `VITE_API_URL`                    | Yes      | —       | `https://api.example.com`                                  | Backend API base URL      |
-| `VITE_SOROBAN_RPC_URL`            | Yes      | —       | `https://soroban-mainnet.stellar.org`                      | Soroban RPC endpoint      |
-| `VITE_STELLAR_NETWORK_PASSPHRASE` | Yes      | —       | `Public Global Stellar Network ; September 2015`           | Network passphrase        |
+| `VITE_STELLAR_NETWORK`            | Yes      | —       | `mainnet`                                                  | Named network preset      |
+| `VITE_SOROBAN_RPC_URL`            | No       | preset  | `https://soroban-mainnet.stellar.org`                      | Soroban RPC override      |
+| `VITE_HORIZON_URL`                | No       | preset  | `https://horizon.stellar.org`                              | Horizon override          |
+| `VITE_STELLAR_NETWORK_PASSPHRASE` | No       | preset  | `Public Global Stellar Network ; September 2015`           | Network passphrase override |
 | `VITE_REWARDS_CONTRACT_ID`        | No       | —       | `CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4` | Rewards contract address  |
 | `VITE_CAMPAIGN_CONTRACT_ID`       | No       | —       | `CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4` | Campaign contract address |
 
@@ -79,6 +83,7 @@ Create `.env.production` in the `backend/` directory:
 PORT=3001
 STELLAR_NETWORK=mainnet
 SOROBAN_RPC_URL=https://soroban-mainnet.stellar.org
+HORIZON_URL=https://horizon.stellar.org
 CORS_ALLOWED_ORIGINS=https://app.example.com
 TRIVELA_API_KEY=sk_prod_<random-secure-key>
 REWARDS_CONTRACT_ID=<contract-id>
@@ -157,7 +162,9 @@ Create `frontend/.env.production`:
 
 ```bash
 VITE_API_URL=https://api.example.com
+VITE_STELLAR_NETWORK=mainnet
 VITE_SOROBAN_RPC_URL=https://soroban-mainnet.stellar.org
+VITE_HORIZON_URL=https://horizon.stellar.org
 VITE_STELLAR_NETWORK_PASSPHRASE=Public Global Stellar Network ; September 2015
 VITE_REWARDS_CONTRACT_ID=<contract-id>
 VITE_CAMPAIGN_CONTRACT_ID=<contract-id>

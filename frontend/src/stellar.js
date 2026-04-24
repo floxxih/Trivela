@@ -13,22 +13,22 @@ import {
   nativeToScVal,
 } from '@stellar/stellar-sdk';
 import {
-  CAMPAIGN_CONTRACT_ID,
   createSorobanServer,
+  getCampaignContractId,
+  getHorizonUrl,
+  getNetworkPassphrase,
   getCampaignContract,
   getRewardsContract,
-  NETWORK_PASSPHRASE,
-  REWARDS_CONTRACT_ID,
+  getStellarNetwork,
+  getRewardsContractId,
 } from './config';
 
 export {
-  CAMPAIGN_CONTRACT_ID,
-  NETWORK_PASSPHRASE,
-  REWARDS_CONTRACT_ID,
+  getCampaignContractId,
+  getNetworkPassphrase,
+  getStellarNetwork,
+  getRewardsContractId,
 } from './config';
-
-export const HORIZON_URL =
-  import.meta.env.VITE_HORIZON_URL || 'https://horizon-testnet.stellar.org';
 
 /* ---------- Freighter helpers ---------- */
 
@@ -114,7 +114,7 @@ export function normalizeError(error) {
  */
 export async function fetchWalletBalance(walletAddress) {
   const response = await fetch(
-    `${HORIZON_URL}/accounts/${encodeURIComponent(walletAddress)}`,
+    `${getHorizonUrl()}/accounts/${encodeURIComponent(walletAddress)}`,
   );
 
   if (!response.ok) {
@@ -145,7 +145,7 @@ export async function fetchRewardsBalance(walletAddress) {
 
   const transaction = new TransactionBuilder(sourceAccount, {
     fee: BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
+    networkPassphrase: getNetworkPassphrase(),
   })
     .addOperation(
       contract.call('balance', nativeToScVal(Address.fromString(walletAddress))),
@@ -180,7 +180,7 @@ export async function submitClaimTransaction(walletAddress, amount) {
   /* 1. Build the transaction */
   const tx = new TransactionBuilder(sourceAccount, {
     fee: BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
+    networkPassphrase: getNetworkPassphrase(),
   })
     .addOperation(
       contract.call(
@@ -198,7 +198,7 @@ export async function submitClaimTransaction(walletAddress, amount) {
   /* 3. Sign with Freighter */
   const freighterApi = getFreighterApi();
   const signResult = await freighterApi.signTransaction(preparedTx.toXDR(), {
-    networkPassphrase: NETWORK_PASSPHRASE,
+    networkPassphrase: getNetworkPassphrase(),
     address: walletAddress,
   });
 
@@ -207,7 +207,7 @@ export async function submitClaimTransaction(walletAddress, amount) {
   /* 4. Re-construct the signed transaction */
   const signedTx = TransactionBuilder.fromXDR(
     signResult.signedTxXdr,
-    NETWORK_PASSPHRASE,
+    getNetworkPassphrase(),
   );
 
   /* 5. Submit */
@@ -258,7 +258,7 @@ export async function checkParticipantStatus(walletAddress) {
 
   const tx = new TransactionBuilder(sourceAccount, {
     fee: BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
+    networkPassphrase: getNetworkPassphrase(),
   })
     .addOperation(
       contract.call(
@@ -301,7 +301,7 @@ export async function submitRegisterTransaction(walletAddress) {
   /* 1. Build */
   const tx = new TransactionBuilder(sourceAccount, {
     fee: BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
+    networkPassphrase: getNetworkPassphrase(),
   })
     .addOperation(
       contract.call(
@@ -320,7 +320,7 @@ export async function submitRegisterTransaction(walletAddress) {
   /* 3. Sign with Freighter */
   const freighterApi = getFreighterApi();
   const signResult = await freighterApi.signTransaction(preparedTx.toXDR(), {
-    networkPassphrase: NETWORK_PASSPHRASE,
+    networkPassphrase: getNetworkPassphrase(),
     address: walletAddress,
   });
 
@@ -329,7 +329,7 @@ export async function submitRegisterTransaction(walletAddress) {
   /* 4. Re-construct signed transaction */
   const signedTx = TransactionBuilder.fromXDR(
     signResult.signedTxXdr,
-    NETWORK_PASSPHRASE,
+    getNetworkPassphrase(),
   );
 
   /* 5. Submit */

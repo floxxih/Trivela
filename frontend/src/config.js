@@ -1,17 +1,59 @@
 import { Contract, Networks, rpc } from '@stellar/stellar-sdk';
 
-const DEFAULT_SOROBAN_RPC_URL = 'https://soroban-testnet.stellar.org';
+const STELLAR_NETWORKS = {
+  testnet: {
+    network: 'testnet',
+    networkPassphrase: Networks.TESTNET,
+    sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
+    horizonUrl: 'https://horizon-testnet.stellar.org',
+  },
+  mainnet: {
+    network: 'mainnet',
+    networkPassphrase: Networks.PUBLIC,
+    sorobanRpcUrl: 'https://soroban-mainnet.stellar.org',
+    horizonUrl: 'https://horizon.stellar.org',
+  },
+};
 
 function trimTrailingSlash(value) {
   return value.replace(/\/+$/, '');
 }
 
+function resolveNetworkConfig({
+  network = 'testnet',
+  networkPassphrase,
+  sorobanRpcUrl,
+  horizonUrl,
+} = {}) {
+  const normalizedNetwork = String(network || 'testnet').trim().toLowerCase();
+  const preset = STELLAR_NETWORKS[normalizedNetwork] ?? STELLAR_NETWORKS.testnet;
+
+  return {
+    network: normalizedNetwork,
+    networkPassphrase: networkPassphrase || preset.networkPassphrase,
+    sorobanRpcUrl: sorobanRpcUrl || preset.sorobanRpcUrl,
+    horizonUrl: horizonUrl || preset.horizonUrl,
+  };
+}
+
 export const API_BASE_URL = trimTrailingSlash(import.meta.env.VITE_API_URL || '');
-export const SOROBAN_RPC_URL = import.meta.env.VITE_SOROBAN_RPC_URL || DEFAULT_SOROBAN_RPC_URL;
-export const REWARDS_CONTRACT_ID = import.meta.env.VITE_REWARDS_CONTRACT_ID || '';
-export const CAMPAIGN_CONTRACT_ID = import.meta.env.VITE_CAMPAIGN_CONTRACT_ID || '';
-export const NETWORK_PASSPHRASE =
-  import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
+
+let runtimeConfig = {
+  stellar: resolveNetworkConfig({
+    network: import.meta.env.VITE_STELLAR_NETWORK,
+    networkPassphrase: import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE,
+    sorobanRpcUrl: import.meta.env.VITE_SOROBAN_RPC_URL,
+    horizonUrl: import.meta.env.VITE_HORIZON_URL,
+  }),
+  contracts: {
+    rewards: import.meta.env.VITE_REWARDS_CONTRACT_ID || '',
+    campaign: import.meta.env.VITE_CAMPAIGN_CONTRACT_ID || '',
+  },
+  sources: {
+    stellar: 'env',
+    contracts: 'env',
+  },
+};
 
 export function apiUrl(path) {
   if (!path.startsWith('/')) {
@@ -21,14 +63,81 @@ export function apiUrl(path) {
   return `${API_BASE_URL}${path}`;
 }
 
+export async function initializeRuntimeConfig(fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== 'function') {
+    return getRuntimeConfig();
+  }
+
+  try {
+    const response = await fetchImpl(apiUrl('/api/v1/config'));
+    if (!response.ok) {
+      return getRuntimeConfig();
+    }
+
+    const payload = await response.json();
+    runtimeConfig = {
+      stellar: resolveNetworkConfig({
+        ...runtimeConfig.stellar,
+        ...payload.stellar,
+      }),
+      contracts: {
+        rewards: payload.contracts?.rewards ?? runtimeConfig.contracts.rewards,
+        campaign: payload.contracts?.campaign ?? runtimeConfig.contracts.campaign,
+      },
+      sources: {
+        stellar: 'backend',
+        contracts: 'backend',
+      },
+    };
+  } catch (_error) {
+    return getRuntimeConfig();
+  }
+
+  return getRuntimeConfig();
+}
+
+export function getRuntimeConfig() {
+  return {
+    stellar: { ...runtimeConfig.stellar },
+    contracts: { ...runtimeConfig.contracts },
+    sources: { ...runtimeConfig.sources },
+  };
+}
+
+export function getSorobanRpcUrl() {
+  return runtimeConfig.stellar.sorobanRpcUrl;
+}
+
+export function getHorizonUrl() {
+  return runtimeConfig.stellar.horizonUrl;
+}
+
+export function getNetworkPassphrase() {
+  return runtimeConfig.stellar.networkPassphrase;
+}
+
+export function getStellarNetwork() {
+  return runtimeConfig.stellar.network;
+}
+
+export function getRewardsContractId() {
+  return runtimeConfig.contracts.rewards;
+}
+
+export function getCampaignContractId() {
+  return runtimeConfig.contracts.campaign;
+}
+
 export function createSorobanServer() {
-  return new rpc.Server(SOROBAN_RPC_URL);
+  return new rpc.Server(getSorobanRpcUrl());
 }
 
 export function getRewardsContract() {
-  return REWARDS_CONTRACT_ID ? new Contract(REWARDS_CONTRACT_ID) : null;
+  const contractId = getRewardsContractId();
+  return contractId ? new Contract(contractId) : null;
 }
 
 export function getCampaignContract() {
-  return CAMPAIGN_CONTRACT_ID ? new Contract(CAMPAIGN_CONTRACT_ID) : null;
+  const contractId = getCampaignContractId();
+  return contractId ? new Contract(contractId) : null;
 }

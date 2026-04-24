@@ -37,6 +37,14 @@ jobs:
       - name: Build frontend
         run: npm run build --workspace=frontend
 
+      - name: Upload frontend build artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          if-no-files-found: error
+
       - name: Install Playwright browsers
         if: steps.scripts.outputs.has_test == 'true'
         run: npx playwright install --with-deps chromium

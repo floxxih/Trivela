@@ -15,8 +15,10 @@ npm run dev
 - `PORT`: Server port (default `3001`)
 - `CORS_ALLOWED_ORIGINS`: Comma-separated allowed origins for CORS (example: `https://app.example.com,https://admin.example.com`)
 - `CORS_ORIGIN`: Legacy single-origin CORS setting (fallback when `CORS_ALLOWED_ORIGINS` is not set)
-- `STELLAR_NETWORK`: `testnet` or `mainnet`
-- `SOROBAN_RPC_URL`: Soroban RPC URL exposed in API metadata
+- `STELLAR_NETWORK`: Explicit named network preset, `testnet` or `mainnet`
+- `SOROBAN_RPC_URL`: Optional Soroban RPC override exposed in API metadata
+- `HORIZON_URL`: Optional Horizon override exposed in API metadata
+- `STELLAR_NETWORK_PASSPHRASE`: Optional passphrase override for the chosen network preset
 - `REWARDS_CONTRACT_ID`: Optional rewards contract ID exposed by `/api/v1/config`
 - `CAMPAIGN_CONTRACT_ID`: Optional campaign contract ID exposed by `/api/v1/config`
 - `TRIVELA_API_KEY`: Optional API key for write endpoints (see below)
@@ -201,7 +203,7 @@ curl http://localhost:3001/api/v1
 
 #### GET /api/v1/config
 
-Get public configuration (network, RPC URL, contract IDs).
+Get public configuration (network, passphrase, RPC URL, Horizon URL, contract IDs).
 
 **Response (200 OK):**
 
@@ -210,7 +212,8 @@ Get public configuration (network, RPC URL, contract IDs).
   "stellar": {
     "network": "testnet",
     "networkPassphrase": "Test SDF Network ; September 2015",
-    "rpcUrl": "https://soroban-testnet.stellar.org"
+    "sorobanRpcUrl": "https://soroban-testnet.stellar.org",
+    "horizonUrl": "https://horizon-testnet.stellar.org"
   },
   "contracts": {
     "rewards": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4",
@@ -509,6 +512,7 @@ docker run --rm -p 3001:3001 \
   -e PORT=3001 \
   -e STELLAR_NETWORK=testnet \
   -e SOROBAN_RPC_URL=https://soroban-testnet.stellar.org \
+  -e HORIZON_URL=https://horizon-testnet.stellar.org \
   -e CORS_ALLOWED_ORIGINS=http://localhost:5173 \
   -e TRIVELA_API_KEY=dev-secret \
   trivela-backend
