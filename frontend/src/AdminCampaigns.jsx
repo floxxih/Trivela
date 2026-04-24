@@ -17,16 +17,22 @@ export default function AdminCampaigns({
 }) {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const loadCampaigns = async () => {
     setLoading(true);
+    setError('');
     try {
       const response = await fetch(apiUrl('/api/v1/campaigns'));
+      if (!response.ok) {
+        throw new Error(`Campaign API returned ${response.status}`);
+      }
       const payload = await response.json();
       setCampaigns(payload.data || []);
       logSafeEvent('admin_campaigns_loaded', { count: payload.data?.length ?? 0 });
-    } catch {
+    } catch (fetchError) {
       setCampaigns([]);
+      setError(fetchError?.message || 'Unable to load campaigns.');
     } finally {
       setLoading(false);
     }
@@ -55,6 +61,14 @@ export default function AdminCampaigns({
             Uses session-only API key storage and never exposes admin credentials on public pages.
           </p>
           {loading ? <p>Loading campaigns…</p> : null}
+          {!loading && error ? (
+            <div className="detail-error" role="alert" style={{ marginBottom: '1rem' }}>
+              <p>{error}</p>
+              <button type="button" className="btn btn-primary" onClick={loadCampaigns}>
+                Retry request
+              </button>
+            </div>
+          ) : null}
           <CreateCampaign campaigns={campaigns} onCampaignCreated={loadCampaigns} />
         </section>
       </main>

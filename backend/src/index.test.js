@@ -212,6 +212,25 @@ test('/health/rpc returns 503 when the Soroban RPC health check fails', async ()
   }
 });
 
+test('GET /metrics exposes minimal Prometheus metrics', async () => {
+  const { server, baseUrl } = await startTestServer();
+
+  try {
+    await fetch(`${baseUrl}/api/v1/campaigns`);
+    const response = await fetch(`${baseUrl}/metrics`);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /text\/plain/);
+
+    const body = await response.text();
+    assert.match(body, /trivela_requests_total \d+/);
+    assert.match(body, /trivela_request_errors_total \d+/);
+    assert.match(body, /trivela_process_uptime_seconds [0-9.]+/);
+    assert.match(body, /trivela_route_hits_total\{route="GET \/api\/v1\/campaigns"\} \d+/);
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
 test('POST /api/v1/campaigns creates a new campaign and returns it', async () => {
   const { server, baseUrl } = await startTestServer();
 

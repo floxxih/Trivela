@@ -26,6 +26,7 @@ export default function CampaignDetail({
   const [campaign, setCampaign] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -61,7 +62,7 @@ export default function CampaignDetail({
       });
 
     return () => controller.abort();
-  }, [id]);
+  }, [id, retryCount]);
 
   const formatDate = (value) => {
     if (!value) return '';
@@ -99,9 +100,18 @@ export default function CampaignDetail({
             <div className="detail-error" role="alert">
               <h2>Error</h2>
               <p>{error}</p>
-              <Link to="/" className="btn btn-primary">
-                Return to landing
-              </Link>
+              <div className="detail-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setRetryCount((count) => count + 1)}
+                >
+                  Retry request
+                </button>
+                <Link to="/" className="btn btn-secondary">
+                  Return to landing
+                </Link>
+              </div>
             </div>
           ) : (
             <article className="detail-content">

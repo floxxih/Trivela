@@ -32,6 +32,12 @@ Trivela/
 
 ---
 
+## Architecture
+
+For a quick system map (diagram, trust boundaries, and end-to-end data flows), see [`docs/ARCHITECTURE_OVERVIEW.md`](docs/ARCHITECTURE_OVERVIEW.md).
+
+---
+
 ## Prerequisites
 
 - **Rust** (for Soroban): [rustup](https://rustup.rs/)
