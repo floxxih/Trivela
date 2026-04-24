@@ -40,7 +40,7 @@ pub enum Error {
     CampaignInactive = 103,
     NotInAllowlist = 104,
     UnsupportedMigration = 105,
-    InvalidAdminNonce = 105,
+    InvalidAdminNonce = 106,
 }
 
 contractmeta!(key = "Description", val = "Trivela campaign configuration");

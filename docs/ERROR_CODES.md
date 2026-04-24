@@ -12,7 +12,7 @@ This document defines all error codes returned by Trivela smart contracts and pr
 | 103  | `CampaignInactive`     | Campaign is not active                    | "This campaign is not active"                            | Wait for campaign to activate |
 | 104  | `NotInAllowlist`       | Address not in Merkle allowlist           | "Your address is not eligible for this campaign"         | Contact campaign operator     |
 | 105  | `UnsupportedMigration` | Migration to unsupported version          | "Contract migration failed"                              | Contact support               |
-| 105  | `InvalidAdminNonce`    | Admin nonce replay protection triggered   | "This action has already been processed"                 | Retry with new nonce          |
+| 106  | `InvalidAdminNonce`    | Admin nonce replay protection triggered   | "This action has already been processed"                 | Retry with new nonce          |
 
 ## Rewards Contract Errors
 
@@ -24,7 +24,7 @@ This document defines all error codes returned by Trivela smart contracts and pr
 | 4    | `ContractPaused`       | Contract is paused                         | "The rewards contract is temporarily unavailable"           | Try again later             |
 | 5    | `CreditLimitExceeded`  | Credit amount exceeds per-call limit       | "Credit amount exceeds the maximum allowed per transaction" | Split into multiple credits |
 | 6    | `UnsupportedMigration` | Migration to unsupported version           | "Contract migration failed"                                 | Contact support             |
-| 6    | `InvalidMultiplier`    | Campaign multiplier is invalid             | "Invalid reward multiplier configuration"                   | Contact support             |
+| 7    | `InvalidMultiplier`    | Campaign multiplier is invalid             | "Invalid reward multiplier configuration"                   | Contact support             |
 
 ## Backend API Errors
 

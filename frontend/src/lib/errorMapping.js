@@ -4,21 +4,23 @@
  */
 
 export const ERROR_MESSAGES = {
-  // Campaign contract errors (100-105)
+  // Campaign contract errors (100-106)
   100: "You don't have permission to perform this action",
   101: "This campaign is not currently accepting registrations",
   102: "This campaign has reached its participant limit",
   103: "This campaign is not active",
   104: "Your address is not eligible for this campaign",
-  105: "This action has already been processed or contract migration failed",
+  105: "Contract migration failed or this action has already been processed",
+  106: "This action has already been processed",
 
-  // Rewards contract errors (1-6)
+  // Rewards contract errors (1-7)
   1: "Balance calculation error. Please contact support",
   2: "Insufficient balance to claim this amount",
   3: "You don't have permission to perform this action",
   4: "The rewards contract is temporarily unavailable",
   5: "Credit amount exceeds the maximum allowed per transaction",
   6: "Invalid reward configuration. Please contact support",
+  7: "Invalid reward multiplier configuration. Please contact support",
 
   // HTTP status codes
   400: "Invalid input. Please check your data and try again",

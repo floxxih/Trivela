@@ -23,7 +23,7 @@ pub enum Error {
     ContractPaused = 4,
     CreditLimitExceeded = 5,
     UnsupportedMigration = 6,
-    InvalidMultiplier = 6,
+    InvalidMultiplier = 7,
 }
 
 contractmeta!(
