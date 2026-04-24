@@ -129,6 +129,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "schema_v"
+                      },
+                      "val": {
+                        "u32": 1
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "start"
                       },
                       "val": {
