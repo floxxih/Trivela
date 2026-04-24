@@ -15,7 +15,8 @@
     "test:contracts": "cargo test --workspace",
     "test:backend": "npm run test --workspace=backend",
     "test:frontend": "npm run test --workspace=frontend",
-    "deploy:testnet": "bash ./scripts/deploy-testnet.sh"
+    "deploy:testnet": "bash ./scripts/deploy-testnet.sh",
+    "labels:sync": "node ./scripts/sync-github-labels.js"
   },
   "workspaces": [
     "backend",

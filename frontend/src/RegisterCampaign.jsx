@@ -3,7 +3,8 @@ import {
   submitRegisterTransaction,
   checkParticipantStatus,
   normalizeError,
-  CAMPAIGN_CONTRACT_ID,
+  getCampaignContractId,
+  getStellarNetwork,
 } from './stellar';
 
 /**
@@ -23,10 +24,12 @@ export default function RegisterCampaign({ walletAddress }) {
   const [notice, setNotice] = useState('');
   const headingId = useId();
   const statusId = useId();
+  const campaignContractId = getCampaignContractId();
+  const stellarNetwork = getStellarNetwork();
 
   /* On mount (and when the wallet changes), check participant status. */
   useEffect(() => {
-    if (!walletAddress || !CAMPAIGN_CONTRACT_ID) {
+    if (!walletAddress || !campaignContractId) {
       setIsRegistered(null);
       setError('');
       setNotice('');
@@ -52,7 +55,7 @@ export default function RegisterCampaign({ walletAddress }) {
     return () => {
       cancelled = true;
     };
-  }, [walletAddress]);
+  }, [walletAddress, campaignContractId]);
 
   const handleRegister = async () => {
     if (!walletAddress) return;
@@ -77,7 +80,7 @@ export default function RegisterCampaign({ walletAddress }) {
     }
   };
 
-  if (!CAMPAIGN_CONTRACT_ID) return null;
+  if (!campaignContractId) return null;
 
   const statusLabel = isChecking
     ? 'Checking…'
@@ -114,7 +117,7 @@ export default function RegisterCampaign({ walletAddress }) {
         <p className="register-success" role="status" aria-live="polite">
           ✓ Registered successfully —{' '}
           <a
-            href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
+            href={`https://stellar.expert/explorer/${stellarNetwork}/tx/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
           >

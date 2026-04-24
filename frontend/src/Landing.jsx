@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   apiUrl,
-  CAMPAIGN_CONTRACT_ID,
-  REWARDS_CONTRACT_ID,
-  SOROBAN_RPC_URL,
   getCampaignContract,
   getRewardsContract,
 } from './config';
-import {
-  fetchRewardsBalance,
-  formatPoints,
-  normalizeError,
-} from './stellar';
 import ClaimRewards from './ClaimRewards';
 import './Landing.css';
 import RegisterCampaign from './RegisterCampaign';
@@ -42,6 +34,7 @@ function getFallbackPagination(items, page) {
 }
 
 export default function Landing({
+  runtimeConfig,
   theme,
   onToggleTheme,
   walletAddress,
@@ -64,6 +57,11 @@ export default function Landing({
   const [pagination, setPagination] = useState(() => getFallbackPagination([], 1));
   const campaignContract = getCampaignContract();
   const rewardsContract = getRewardsContract();
+  const networkLabel = runtimeConfig?.stellar?.network || 'testnet';
+  const sorobanRpcUrl = runtimeConfig?.stellar?.sorobanRpcUrl || 'Not configured';
+  const horizonUrl = runtimeConfig?.stellar?.horizonUrl || 'Not configured';
+  const rewardsContractId = runtimeConfig?.contracts?.rewards || '';
+  const campaignContractId = runtimeConfig?.contracts?.campaign || '';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -260,12 +258,16 @@ export default function Landing({
               <p>
                 Frontend API and Soroban targets are configured through Vite env values so each deployment
                 can point at its own backend, rewards contract, and campaign contract without code changes.
+                When the backend exposes `/api/v1/config`, the frontend consumes that runtime network config
+                as the source of truth.
               </p>
               <ul className="config-list">
                 <li><strong>Campaigns API:</strong> {apiUrl('/api/v1/campaigns')}</li>
-                <li><strong>Soroban RPC:</strong> {SOROBAN_RPC_URL}</li>
-                <li><strong>Rewards contract:</strong> {rewardsContract ? REWARDS_CONTRACT_ID : 'Not configured'}</li>
-                <li><strong>Campaign contract:</strong> {campaignContract ? CAMPAIGN_CONTRACT_ID : 'Not configured'}</li>
+                <li><strong>Network:</strong> {networkLabel}</li>
+                <li><strong>Soroban RPC:</strong> {sorobanRpcUrl}</li>
+                <li><strong>Horizon:</strong> {horizonUrl}</li>
+                <li><strong>Rewards contract:</strong> {rewardsContract ? rewardsContractId : 'Not configured'}</li>
+                <li><strong>Campaign contract:</strong> {campaignContract ? campaignContractId : 'Not configured'}</li>
               </ul>
             </article>
           </div>

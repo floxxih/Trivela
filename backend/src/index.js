@@ -11,10 +11,10 @@ import { createRateLimiter } from './middleware/rateLimit.js';
 import logger from './middleware/logger.js';
 import { paginateItems } from './pagination.js';
 import { checkSorobanRpcHealth } from './sorobanRpc.js';
-import { createDb } from './db.js';
+import { resolveStellarNetworkConfig } from './config/stellarNetwork.js';
+import { createDal } from './dal/index.js';
 
 const DEFAULT_PORT = 3001;
-const DEFAULT_RPC_URL = 'https://soroban-testnet.stellar.org';
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 60;
 const DEFAULT_SHORT_CACHE_TTL_MS = 5_000;
@@ -127,8 +127,12 @@ export function createApp(options = {}) {
   const apiKey = options.apiKey ?? process.env.TRIVELA_API_KEY ?? '';
   const corsAllowedOrigins =
     options.corsAllowedOrigins ?? process.env.CORS_ALLOWED_ORIGINS ?? process.env.CORS_ORIGIN;
-  const stellarNetwork = options.stellarNetwork ?? process.env.STELLAR_NETWORK ?? 'testnet';
-  const sorobanRpcUrl = options.sorobanRpcUrl ?? process.env.SOROBAN_RPC_URL ?? DEFAULT_RPC_URL;
+  const stellarConfig = resolveStellarNetworkConfig({
+    network: options.stellarNetwork ?? process.env.STELLAR_NETWORK,
+    sorobanRpcUrl: options.sorobanRpcUrl ?? process.env.SOROBAN_RPC_URL,
+    horizonUrl: options.horizonUrl ?? process.env.HORIZON_URL,
+    networkPassphrase: options.networkPassphrase ?? process.env.STELLAR_NETWORK_PASSPHRASE,
+  });
   const rewardsContractId = validateContractId(
     readOptionalConfigValue(options, 'REWARDS_CONTRACT_ID'),
     'REWARDS_CONTRACT_ID',
@@ -152,7 +156,12 @@ export function createApp(options = {}) {
   // otherwise fall back to the default "Welcome Campaign" row.
   const seed = options.campaigns ?? defaultSeed();
   const dbPath = options.dbPath ?? process.env.DB_PATH ?? ':memory:';
-  const db = createDb(dbPath, seed);
+  const dal = createDal({
+    dbPath,
+    campaigns: seed,
+    campaignRepository: options.campaignRepository,
+  });
+  const campaignRepository = dal.campaigns;
   const shortCacheTtlMs = normalizePositiveInteger(
     options.shortCacheTtlMs ?? process.env.SHORT_CACHE_TTL_MS,
     DEFAULT_SHORT_CACHE_TTL_MS,
@@ -194,7 +203,7 @@ export function createApp(options = {}) {
 
   async function buildHealthPayload() {
     const rpc = await checkSorobanRpcHealth({
-      rpcUrl: sorobanRpcUrl,
+      rpcUrl: stellarConfig.sorobanRpcUrl,
       fetchImpl,
     });
 
@@ -213,7 +222,7 @@ export function createApp(options = {}) {
 
   app.get('/health/rpc', async (_req, res) => {
     const rpc = await checkSorobanRpcHealth({
-      rpcUrl: sorobanRpcUrl,
+      rpcUrl: stellarConfig.sorobanRpcUrl,
       fetchImpl,
     });
     res.status(rpc.status === 'ok' ? 200 : 503).json(rpc);
@@ -276,8 +285,7 @@ export function createApp(options = {}) {
         usingLegacyPrefix,
       },
       stellar: {
-        network: stellarNetwork,
-        rpcUrl: sorobanRpcUrl,
+        ...stellarConfig,
       },
       config: {
         rewardsContractId: rewardsContractId || null,
@@ -296,9 +304,10 @@ export function createApp(options = {}) {
 
   function getPublicConfig(_req, res) {
     res.json({
-      sorobanRpcUrl,
-      stellarNetwork,
-      contractIds: {
+      stellar: {
+        ...stellarConfig,
+      },
+      contracts: {
         rewards: rewardsContractId || null,
         campaign: campaignContractId || null,
       },
@@ -317,7 +326,7 @@ export function createApp(options = {}) {
         ? req.query.active === 'true'
         : undefined;
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-    const items = db.getAll({ active: activeFilter, q });
+    const items = campaignRepository.list({ active: activeFilter, q });
     const payload = paginateItems(items, req.query);
     shortCache.set(cacheKey, {
       expiresAt: Date.now() + shortCacheTtlMs,
@@ -327,7 +336,7 @@ export function createApp(options = {}) {
   }
 
   function getCampaignById(req, res) {
-    const campaign = db.getById(req.params.id);
+    const campaign = campaignRepository.getById(req.params.id);
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
@@ -344,7 +353,7 @@ export function createApp(options = {}) {
     }
 
     const { name, description, rewardPerAction } = req.body;
-    const campaign = db.create({
+    const campaign = campaignRepository.create({
       name,
       description: description || '',
       rewardPerAction: rewardPerAction ?? 0,
@@ -362,7 +371,7 @@ export function createApp(options = {}) {
       });
     }
 
-    const campaign = db.update(req.params.id, req.body);
+    const campaign = campaignRepository.update(req.params.id, req.body);
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
@@ -371,7 +380,7 @@ export function createApp(options = {}) {
   }
 
   function deleteCampaign(req, res) {
-    const deleted = db.delete(req.params.id);
+    const deleted = campaignRepository.delete(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Campaign not found' });
     }

@@ -66,17 +66,21 @@ Create a `.env.local` file in `frontend/` when you need to point the app at non-
 
 ```bash
 VITE_API_URL=http://localhost:3001
+VITE_STELLAR_NETWORK=testnet
 VITE_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+VITE_HORIZON_URL=https://horizon-testnet.stellar.org
 VITE_REWARDS_CONTRACT_ID=CC...
 VITE_CAMPAIGN_CONTRACT_ID=CC...
 VITE_STELLAR_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
 ```
 
 - `VITE_API_URL`: Base URL used for frontend `fetch` calls. Leave empty to use the local Vite proxy.
-- `VITE_SOROBAN_RPC_URL`: Soroban RPC endpoint used by frontend contract helpers. Defaults to Stellar testnet RPC.
+- `VITE_STELLAR_NETWORK`: Explicit named preset (`testnet` or `mainnet`).
+- `VITE_SOROBAN_RPC_URL`: Optional override for the selected network's Soroban RPC endpoint.
+- `VITE_HORIZON_URL`: Optional override for the selected network's Horizon endpoint.
 - `VITE_REWARDS_CONTRACT_ID`: Optional rewards contract ID for frontend Soroban calls.
 - `VITE_CAMPAIGN_CONTRACT_ID`: Optional campaign contract ID for frontend Soroban calls.
-- `VITE_STELLAR_NETWORK_PASSPHRASE`: Stellar network passphrase. Defaults to testnet.
+- `VITE_STELLAR_NETWORK_PASSPHRASE`: Optional override for the selected network's passphrase.
 
 ## API routing
 
@@ -89,6 +93,7 @@ The frontend reads these values from [src/config.js](/Users/CMI-James/od/Trivela
 - API requests are built with `apiUrl(...)`.
 - Soroban RPC access goes through `createSorobanServer()`.
 - Rewards and campaign contract IDs are exposed through `getRewardsContract()` and `getCampaignContract()`.
+- On startup, the frontend fetches `/api/v1/config` and prefers the backend-resolved network config when that endpoint is available.
 
 ## Stellar integration
 
