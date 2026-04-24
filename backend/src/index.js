@@ -165,6 +165,11 @@ export function createApp(options = {}) {
   };
 
   const app = express();
+  const metrics = {
+    requestTotal: 0,
+    requestErrors: 0,
+    routeHits: new Map(),
+  };
   const requireApiKey = createApiKeyAuth({ apiKey });
   const rateLimiter = createRateLimiter({
     windowMs: rateLimitWindowMs,
@@ -175,6 +180,17 @@ export function createApp(options = {}) {
   app.use(cors(createCorsOptions(allowedOrigins)));
   app.use(logger);
   app.use(express.json());
+  app.use((req, res, next) => {
+    metrics.requestTotal += 1;
+    res.on('finish', () => {
+      const routeKey = `${req.method} ${req.path}`;
+      metrics.routeHits.set(routeKey, (metrics.routeHits.get(routeKey) ?? 0) + 1);
+      if (res.statusCode >= 400) {
+        metrics.requestErrors += 1;
+      }
+    });
+    next();
+  });
 
   async function buildHealthPayload() {
     const rpc = await checkSorobanRpcHealth({
@@ -203,6 +219,36 @@ export function createApp(options = {}) {
     res.status(rpc.status === 'ok' ? 200 : 503).json(rpc);
   });
 
+  app.get('/metrics', (_req, res) => {
+    const uptimeSeconds = process.uptime();
+    const routeLines = [...metrics.routeHits.entries()]
+      .map(([route, count]) => {
+        const escapedRoute = route.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        return `trivela_route_hits_total{route="${escapedRoute}"} ${count}`;
+      })
+      .join('\n');
+
+    const payload = [
+      '# HELP trivela_requests_total Total HTTP requests handled.',
+      '# TYPE trivela_requests_total counter',
+      `trivela_requests_total ${metrics.requestTotal}`,
+      '# HELP trivela_request_errors_total Total HTTP requests with status >= 400.',
+      '# TYPE trivela_request_errors_total counter',
+      `trivela_request_errors_total ${metrics.requestErrors}`,
+      '# HELP trivela_process_uptime_seconds Node.js process uptime.',
+      '# TYPE trivela_process_uptime_seconds gauge',
+      `trivela_process_uptime_seconds ${uptimeSeconds.toFixed(3)}`,
+      '# HELP trivela_route_hits_total Route-level request counts.',
+      '# TYPE trivela_route_hits_total counter',
+      routeLines,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    res.send(`${payload}\n`);
+  });
+
   function apiInfo(req, res) {
     const usingLegacyPrefix =
       req.path.startsWith(LEGACY_API_PREFIX) && !req.path.startsWith(API_V1_PREFIX);
@@ -214,6 +260,7 @@ export function createApp(options = {}) {
       endpoints: {
         health: 'GET /health',
         healthRpc: 'GET /health/rpc',
+        metrics: 'GET /metrics',
         info: `GET ${API_V1_PREFIX}`,
         campaigns: `GET ${API_V1_PREFIX}/campaigns`,
         campaign: `GET ${API_V1_PREFIX}/campaigns/:id`,
