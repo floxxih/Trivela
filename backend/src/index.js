@@ -17,6 +17,7 @@ const DEFAULT_PORT = 3001;
 const DEFAULT_RPC_URL = 'https://soroban-testnet.stellar.org';
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 60;
+const DEFAULT_SHORT_CACHE_TTL_MS = 5_000;
 const LEGACY_API_PREFIX = '/api';
 const API_V1_PREFIX = '/api/v1';
 const CONTRACT_ID_PATTERN = /^C[A-Z2-7]{55}$/;
@@ -152,6 +153,16 @@ export function createApp(options = {}) {
   const seed = options.campaigns ?? defaultSeed();
   const dbPath = options.dbPath ?? process.env.DB_PATH ?? ':memory:';
   const db = createDb(dbPath, seed);
+  const shortCacheTtlMs = normalizePositiveInteger(
+    options.shortCacheTtlMs ?? process.env.SHORT_CACHE_TTL_MS,
+    DEFAULT_SHORT_CACHE_TTL_MS,
+  );
+  const shortCache = new Map();
+  const indexerCursorState = {
+    cursor: options.initialIndexerCursor ?? process.env.INDEXER_EVENT_CURSOR ?? null,
+    updatedAt: new Date().toISOString(),
+    source: options.initialIndexerCursor ?? process.env.INDEXER_EVENT_CURSOR ? 'env' : 'runtime',
+  };
 
   const app = express();
   const requireApiKey = createApiKeyAuth({ apiKey });
@@ -248,6 +259,12 @@ export function createApp(options = {}) {
   }
 
   function listCampaigns(req, res) {
+    const cacheKey = `campaigns:${req.originalUrl}`;
+    const cached = shortCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return res.set('x-cache', 'HIT').json(cached.payload);
+    }
+
     const activeFilter =
       req.query.active !== undefined
         ? req.query.active === 'true'
@@ -255,6 +272,13 @@ export function createApp(options = {}) {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const items = db.getAll({ active: activeFilter, q });
     res.json(paginateItems(items, req.query));
+    const items = db.getAll({ active: activeFilter });
+    const payload = paginateItems(items, req.query);
+    shortCache.set(cacheKey, {
+      expiresAt: Date.now() + shortCacheTtlMs,
+      payload,
+    });
+    return res.set('x-cache', 'MISS').json(payload);
   }
 
   function getCampaignById(req, res) {
@@ -280,6 +304,7 @@ export function createApp(options = {}) {
       description: description || '',
       rewardPerAction: rewardPerAction ?? 0,
     });
+    shortCache.clear();
     return res.status(201).json(campaign);
   }
 
@@ -296,7 +321,7 @@ export function createApp(options = {}) {
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
-
+    shortCache.clear();
     return res.json(campaign);
   }
 
@@ -305,7 +330,31 @@ export function createApp(options = {}) {
     if (!deleted) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
+    shortCache.clear();
     return res.status(204).end();
+  }
+
+  function getIndexerCursorState(_req, res) {
+    return res.json({
+      cursor: indexerCursorState.cursor,
+      updatedAt: indexerCursorState.updatedAt,
+      source: indexerCursorState.source,
+    });
+  }
+
+  function setIndexerCursorState(req, res) {
+    const { cursor } = req.body ?? {};
+    if (typeof cursor !== 'string' || cursor.trim().length === 0) {
+      return res.status(400).json({ error: 'cursor is required and must be a non-empty string' });
+    }
+    indexerCursorState.cursor = cursor.trim();
+    indexerCursorState.updatedAt = new Date().toISOString();
+    indexerCursorState.source = 'api';
+    return res.status(200).json({
+      ok: true,
+      cursor: indexerCursorState.cursor,
+      updatedAt: indexerCursorState.updatedAt,
+    });
   }
 
   function registerApiRoutes(prefix) {
@@ -313,6 +362,8 @@ export function createApp(options = {}) {
     app.get(`${prefix}/config`, rateLimiter, getPublicConfig);
     app.get(`${prefix}/campaigns`, rateLimiter, listCampaigns);
     app.get(`${prefix}/campaigns/:id`, rateLimiter, getCampaignById);
+    app.get(`${prefix}/indexer/cursor`, rateLimiter, getIndexerCursorState);
+    app.post(`${prefix}/indexer/cursor`, rateLimiter, requireApiKey, setIndexerCursorState);
     app.post(`${prefix}/campaigns`, rateLimiter, requireApiKey, createCampaign);
     app.put(`${prefix}/campaigns/:id`, rateLimiter, requireApiKey, updateCampaign);
     app.delete(`${prefix}/campaigns/:id`, rateLimiter, requireApiKey, deleteCampaign);

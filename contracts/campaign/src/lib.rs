@@ -40,6 +40,7 @@ pub enum Error {
     CampaignInactive = 103,
     NotInAllowlist = 104,
     UnsupportedMigration = 105,
+    InvalidAdminNonce = 105,
 }
 
 contractmeta!(key = "Description", val = "Trivela campaign configuration");
@@ -54,6 +55,7 @@ const PARTICIPANT_COUNT: Symbol = symbol_short!("count");
 const MERKLE_ROOT: Symbol = symbol_short!("mkroot");
 const SCHEMA_VERSION: Symbol = symbol_short!("schema_v");
 const CURRENT_SCHEMA_VERSION: u32 = 1;
+const ADMIN_NONCE: Symbol = symbol_short!("anonce");
 
 #[contract]
 pub struct CampaignContract;
@@ -84,6 +86,24 @@ fn verify_merkle_proof(
     &computed == root
 }
 
+fn require_admin_with_nonce(
+    env: &Env,
+    admin: &Address,
+    nonce: u64,
+) -> Result<(), Error> {
+    admin.require_auth();
+    let stored: Address = env.storage().instance().get(&ADMIN).unwrap();
+    if &stored != admin {
+        return Err(Error::Unauthorized);
+    }
+    let current: u64 = env.storage().instance().get(&ADMIN_NONCE).unwrap_or(0);
+    if nonce != current {
+        return Err(Error::InvalidAdminNonce);
+    }
+    env.storage().instance().set(&ADMIN_NONCE, &(current + 1));
+    Ok(())
+}
+
 #[contractimpl]
 impl CampaignContract {
     /// Initialize campaign contract with an admin.
@@ -96,6 +116,7 @@ impl CampaignContract {
         env.storage()
             .instance()
             .set(&SCHEMA_VERSION, &CURRENT_SCHEMA_VERSION);
+        env.storage().instance().set(&ADMIN_NONCE, &0u64);
         env.storage().instance().extend_ttl(50, 100);
         Ok(())
     }
@@ -129,12 +150,8 @@ impl CampaignContract {
     }
 
     /// Set registration time window (admin only).
-    pub fn set_window(env: Env, admin: Address, start: u64, end: u64) -> Result<(), Error> {
-        admin.require_auth();
-        let stored: Address = env.storage().instance().get(&ADMIN).unwrap();
-        if stored != admin {
-            return Err(Error::Unauthorized);
-        }
+    pub fn set_window(env: Env, admin: Address, nonce: u64, start: u64, end: u64) -> Result<(), Error> {
+        require_admin_with_nonce(&env, &admin, nonce)?;
         env.storage().instance().set(&START_TIME, &start);
         env.storage().instance().set(&END_TIME, &end);
         env.storage().instance().extend_ttl(50, 100);
@@ -142,24 +159,16 @@ impl CampaignContract {
     }
 
     /// Set campaign active flag (admin only).
-    pub fn set_active(env: Env, admin: Address, active: bool) -> Result<(), Error> {
-        admin.require_auth();
-        let stored: Address = env.storage().instance().get(&ADMIN).unwrap();
-        if stored != admin {
-            return Err(Error::Unauthorized);
-        }
+    pub fn set_active(env: Env, admin: Address, nonce: u64, active: bool) -> Result<(), Error> {
+        require_admin_with_nonce(&env, &admin, nonce)?;
         env.storage().instance().set(&CAMPAIGN_ACTIVE, &active);
         env.storage().instance().extend_ttl(50, 100);
         Ok(())
     }
 
     /// Set maximum participant cap (admin only). Set to 0 for unlimited.
-    pub fn set_max_cap(env: Env, admin: Address, max_cap: u64) -> Result<(), Error> {
-        admin.require_auth();
-        let stored: Address = env.storage().instance().get(&ADMIN).unwrap();
-        if stored != admin {
-            return Err(Error::Unauthorized);
-        }
+    pub fn set_max_cap(env: Env, admin: Address, nonce: u64, max_cap: u64) -> Result<(), Error> {
+        require_admin_with_nonce(&env, &admin, nonce)?;
         env.storage().instance().set(&MAX_CAP, &max_cap);
         env.storage().instance().extend_ttl(50, 100);
         Ok(())
@@ -170,12 +179,8 @@ impl CampaignContract {
     /// Once set, every `register` call must supply a valid `(leaf, proof)`.
     /// Remove the root by calling this again with a root of all zeros to
     /// revert to open registration.
-    pub fn set_merkle_root(env: Env, admin: Address, root: BytesN<32>) -> Result<(), Error> {
-        admin.require_auth();
-        let stored: Address = env.storage().instance().get(&ADMIN).unwrap();
-        if stored != admin {
-            return Err(Error::Unauthorized);
-        }
+    pub fn set_merkle_root(env: Env, admin: Address, nonce: u64, root: BytesN<32>) -> Result<(), Error> {
+        require_admin_with_nonce(&env, &admin, nonce)?;
         env.storage().instance().set(&MERKLE_ROOT, &root);
         env.storage().instance().extend_ttl(50, 100);
         Ok(())
@@ -297,6 +302,11 @@ impl CampaignContract {
     /// Get maximum participant cap (0 means unlimited).
     pub fn get_max_cap(env: Env) -> u64 {
         env.storage().instance().get(&MAX_CAP).unwrap_or(0)
+    }
+
+    /// Get the next required admin nonce for sensitive operations.
+    pub fn admin_nonce(env: Env) -> u64 {
+        env.storage().instance().get(&ADMIN_NONCE).unwrap_or(0)
     }
 }
 

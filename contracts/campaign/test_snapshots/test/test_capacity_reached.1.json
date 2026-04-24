@@ -20,6 +20,9 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
+                  "u64": "0"
+                },
+                {
                   "u64": "1"
                 }
               ]
@@ -95,6 +98,14 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "anonce"
+                      },
+                      "val": {
+                        "u64": "1"
                       }
                     },
                     {
