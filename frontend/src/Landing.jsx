@@ -15,10 +15,10 @@ import {
 import ClaimRewards from './ClaimRewards';
 import './Landing.css';
 import RegisterCampaign from './RegisterCampaign';
-import CreateCampaign from './CreateCampaign';
 import Header from './components/Header';
 import CampaignCard from './components/CampaignCard';
 import EmptyState from './components/EmptyState';
+import { logSafeEvent } from './lib/safeAnalytics';
 
 const STELLAR_DOCS = 'https://developers.stellar.org/docs';
 const DRIP_WAVE = 'https://www.drips.network/wave/stellar';
@@ -81,6 +81,7 @@ export default function Landing({
       })
       .then((payload) => {
         const items = Array.isArray(payload) ? payload : payload.data ?? payload.campaigns ?? [];
+        logSafeEvent('campaigns_list_loaded', { count: items.length });
         const nextPagination = Array.isArray(payload)
           ? getFallbackPagination(items, campaignPage)
           : {
@@ -101,6 +102,7 @@ export default function Landing({
         setCampaigns([]);
         setPagination(getFallbackPagination([], campaignPage));
         setCampaignsError('Unable to load campaigns right now.');
+        logSafeEvent('campaigns_list_failed');
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -351,9 +353,6 @@ export default function Landing({
             <RegisterCampaign walletAddress={walletAddress} />
           )}
 
-          <CreateCampaign
-            onCampaignCreated={() => setCampaignRefreshKey((value) => value + 1)}
-          />
         </section>
 
         <section className="cta-band" aria-labelledby="cta-title">
