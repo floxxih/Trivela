@@ -37,10 +37,6 @@ function defaultSeed() {
   ];
 }
 
-function cloneCampaigns(campaigns) {
-  return campaigns.map((campaign) => ({ ...campaign }));
-}
-
 function parseAllowedOrigins(value) {
   if (!value) {
     return [];
@@ -113,14 +109,6 @@ function validateCampaignPayload(payload, { partial = false } = {}) {
   return errors;
 }
 
-function nextCampaignId(campaigns) {
-  const maxId = campaigns.reduce((currentMax, campaign) => {
-    const parsed = Number.parseInt(campaign.id, 10);
-    return Number.isFinite(parsed) ? Math.max(currentMax, parsed) : currentMax;
-  }, 0);
-
-  return String(maxId + 1);
-}
 
 export function createApp(options = {}) {
   const apiKey = options.apiKey ?? process.env.TRIVELA_API_KEY ?? '';
@@ -131,6 +119,10 @@ export function createApp(options = {}) {
   const rewardsContractId = readOptionalConfigValue(options, 'REWARDS_CONTRACT_ID');
   const campaignContractId = readOptionalConfigValue(options, 'CAMPAIGN_CONTRACT_ID');
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+<<<<<<< codex/issues-112-110-115-123
+  const dbPath = options.dbPath ?? process.env.DB_PATH ?? ':memory:';
+=======
+>>>>>>> main
   const allowedOrigins = parseAllowedOrigins(corsAllowedOrigins);
   const rateLimitWindowMs = normalizePositiveInteger(
     options.rateLimit?.windowMs ?? process.env.RATE_LIMIT_WINDOW_MS,
@@ -268,22 +260,23 @@ export function createApp(options = {}) {
     }
 
     const { name, description, rewardPerAction } = req.body;
+<<<<<<< codex/issues-112-110-115-123
+=======
 
+>>>>>>> main
     const campaign = db.create({
       name,
       description: description || '',
       rewardPerAction: rewardPerAction ?? 0,
     });
+<<<<<<< codex/issues-112-110-115-123
+=======
 
+>>>>>>> main
     return res.status(201).json(campaign);
   }
 
   function updateCampaign(req, res) {
-    const existing = db.getById(req.params.id);
-    if (!existing) {
-      return res.status(404).json({ error: 'Campaign not found' });
-    }
-
     const errors = validateCampaignPayload(req.body, { partial: true });
     if (errors.length > 0) {
       return res.status(400).json({
@@ -292,8 +285,17 @@ export function createApp(options = {}) {
       });
     }
 
+<<<<<<< codex/issues-112-110-115-123
+    const campaign = db.update(req.params.id, req.body);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    return res.json(campaign);
+=======
     const updated = db.update(req.params.id, req.body);
     return res.json(updated);
+>>>>>>> main
   }
 
   function deleteCampaign(req, res) {
