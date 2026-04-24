@@ -119,7 +119,10 @@ export function createApp(options = {}) {
   const rewardsContractId = readOptionalConfigValue(options, 'REWARDS_CONTRACT_ID');
   const campaignContractId = readOptionalConfigValue(options, 'CAMPAIGN_CONTRACT_ID');
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+<<<<<<< codex/issues-112-110-115-123
   const dbPath = options.dbPath ?? process.env.DB_PATH ?? ':memory:';
+=======
+>>>>>>> main
   const allowedOrigins = parseAllowedOrigins(corsAllowedOrigins);
   const rateLimitWindowMs = normalizePositiveInteger(
     options.rateLimit?.windowMs ?? process.env.RATE_LIMIT_WINDOW_MS,
@@ -133,6 +136,7 @@ export function createApp(options = {}) {
   // When an explicit campaigns seed is provided (legacy test path), use it;
   // otherwise fall back to the default "Welcome Campaign" row.
   const seed = options.campaigns ?? defaultSeed();
+  const dbPath = options.dbPath ?? process.env.DB_PATH;
   const db = createDb(dbPath, seed);
 
   const app = express();
@@ -256,11 +260,19 @@ export function createApp(options = {}) {
     }
 
     const { name, description, rewardPerAction } = req.body;
+<<<<<<< codex/issues-112-110-115-123
+=======
+
+>>>>>>> main
     const campaign = db.create({
       name,
       description: description || '',
       rewardPerAction: rewardPerAction ?? 0,
     });
+<<<<<<< codex/issues-112-110-115-123
+=======
+
+>>>>>>> main
     return res.status(201).json(campaign);
   }
 
@@ -273,12 +285,17 @@ export function createApp(options = {}) {
       });
     }
 
+<<<<<<< codex/issues-112-110-115-123
     const campaign = db.update(req.params.id, req.body);
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
 
     return res.json(campaign);
+=======
+    const updated = db.update(req.params.id, req.body);
+    return res.json(updated);
+>>>>>>> main
   }
 
   function deleteCampaign(req, res) {
