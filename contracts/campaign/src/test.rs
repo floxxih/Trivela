@@ -284,3 +284,23 @@ fn test_open_registration_when_no_root() {
     let (leaf, proof) = no_proof_args(&env);
     assert!(client.register(&participant, &leaf, &proof));
 }
+
+#[test]
+fn test_schema_version_and_migrate_entrypoint() {
+    let (env, client) = setup();
+    let admin = Address::generate(&env);
+    let other = Address::generate(&env);
+    client.initialize(&admin);
+    assert_eq!(client.schema_version(), 1);
+
+    env.mock_all_auths();
+    let migrated = client.migrate(&admin, &1);
+    assert_eq!(migrated, 1);
+    assert_eq!(client.schema_version(), 1);
+
+    let unsupported = client.try_migrate(&admin, &2);
+    assert_eq!(unsupported, Err(Ok(Error::UnsupportedMigration)));
+
+    let unauthorized = client.try_migrate(&other, &1);
+    assert_eq!(unauthorized, Err(Ok(Error::Unauthorized)));
+}

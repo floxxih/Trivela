@@ -133,6 +133,11 @@ test('rate limiting applies to API routes', async () => {
   try {
     const firstResponse = await fetch(`${baseUrl}/api/v1/campaigns`);
     assert.equal(firstResponse.status, 200);
+    assert.equal(firstResponse.headers.get('x-ratelimit-limit'), '1');
+    assert.equal(firstResponse.headers.get('x-ratelimit-remaining'), '0');
+    assert.ok(firstResponse.headers.get('x-ratelimit-reset'));
+    assert.ok(firstResponse.headers.get('ratelimit-policy'));
+    assert.ok(firstResponse.headers.get('ratelimit'));
 
     const secondResponse = await fetch(`${baseUrl}/api/v1/campaigns`);
     assert.equal(secondResponse.status, 429);
@@ -144,6 +149,49 @@ test('rate limiting applies to API routes', async () => {
       windowMs: 60_000,
       retryAfterSeconds: 60,
     });
+  } finally {
+    await stopTestServer(server);
+  }
+});
+
+test('createApp rejects invalid contract IDs in configuration', () => {
+  assert.throws(
+    () => createApp({ REWARDS_CONTRACT_ID: 'invalid-id' }),
+    /REWARDS_CONTRACT_ID must be a valid Stellar contract ID/,
+  );
+
+  assert.throws(
+    () => createApp({ CAMPAIGN_CONTRACT_ID: 'GABC' }),
+    /CAMPAIGN_CONTRACT_ID must be a valid Stellar contract ID/,
+  );
+});
+
+test('GET /api/v1/campaigns supports text search with q parameter', async () => {
+  const seed = [
+    {
+      id: '1',
+      name: 'Stellar Quest',
+      description: 'Rewards for onboarding',
+      active: true,
+      rewardPerAction: 5,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: '2',
+      name: 'Builder Sprint',
+      description: 'Campaign for dev tooling',
+      active: true,
+      rewardPerAction: 5,
+      createdAt: new Date().toISOString(),
+    },
+  ];
+  const { server, baseUrl } = await startTestServer({ campaigns: seed });
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/campaigns?q=stellar`);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.data.length, 1);
+    assert.equal(body.data[0].name, 'Stellar Quest');
   } finally {
     await stopTestServer(server);
   }

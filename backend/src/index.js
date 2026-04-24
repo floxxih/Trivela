@@ -19,6 +19,7 @@ const DEFAULT_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 60;
 const LEGACY_API_PREFIX = '/api';
 const API_V1_PREFIX = '/api/v1';
+const CONTRACT_ID_PATTERN = /^C[A-Z2-7]{55}$/;
 
 function normalizePositiveInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -75,6 +76,17 @@ function readOptionalConfigValue(options, envKey) {
   return typeof fromEnv === 'string' ? fromEnv : '';
 }
 
+function validateContractId(value, label) {
+  if (!value) {
+    return '';
+  }
+  const normalized = value.trim();
+  if (!CONTRACT_ID_PATTERN.test(normalized)) {
+    throw new Error(`${label} must be a valid Stellar contract ID`);
+  }
+  return normalized;
+}
+
 function validateCampaignPayload(payload, { partial = false } = {}) {
   const errors = [];
 
@@ -116,13 +128,15 @@ export function createApp(options = {}) {
     options.corsAllowedOrigins ?? process.env.CORS_ALLOWED_ORIGINS ?? process.env.CORS_ORIGIN;
   const stellarNetwork = options.stellarNetwork ?? process.env.STELLAR_NETWORK ?? 'testnet';
   const sorobanRpcUrl = options.sorobanRpcUrl ?? process.env.SOROBAN_RPC_URL ?? DEFAULT_RPC_URL;
-  const rewardsContractId = readOptionalConfigValue(options, 'REWARDS_CONTRACT_ID');
-  const campaignContractId = readOptionalConfigValue(options, 'CAMPAIGN_CONTRACT_ID');
+  const rewardsContractId = validateContractId(
+    readOptionalConfigValue(options, 'REWARDS_CONTRACT_ID'),
+    'REWARDS_CONTRACT_ID',
+  );
+  const campaignContractId = validateContractId(
+    readOptionalConfigValue(options, 'CAMPAIGN_CONTRACT_ID'),
+    'CAMPAIGN_CONTRACT_ID',
+  );
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-<<<<<<< codex/issues-112-110-115-123
-  const dbPath = options.dbPath ?? process.env.DB_PATH ?? ':memory:';
-=======
->>>>>>> main
   const allowedOrigins = parseAllowedOrigins(corsAllowedOrigins);
   const rateLimitWindowMs = normalizePositiveInteger(
     options.rateLimit?.windowMs ?? process.env.RATE_LIMIT_WINDOW_MS,
@@ -136,7 +150,7 @@ export function createApp(options = {}) {
   // When an explicit campaigns seed is provided (legacy test path), use it;
   // otherwise fall back to the default "Welcome Campaign" row.
   const seed = options.campaigns ?? defaultSeed();
-  const dbPath = options.dbPath ?? process.env.DB_PATH;
+  const dbPath = options.dbPath ?? process.env.DB_PATH ?? ':memory:';
   const db = createDb(dbPath, seed);
 
   const app = express();
@@ -238,7 +252,8 @@ export function createApp(options = {}) {
       req.query.active !== undefined
         ? req.query.active === 'true'
         : undefined;
-    const items = db.getAll({ active: activeFilter });
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const items = db.getAll({ active: activeFilter, q });
     res.json(paginateItems(items, req.query));
   }
 
@@ -260,19 +275,11 @@ export function createApp(options = {}) {
     }
 
     const { name, description, rewardPerAction } = req.body;
-<<<<<<< codex/issues-112-110-115-123
-=======
-
->>>>>>> main
     const campaign = db.create({
       name,
       description: description || '',
       rewardPerAction: rewardPerAction ?? 0,
     });
-<<<<<<< codex/issues-112-110-115-123
-=======
-
->>>>>>> main
     return res.status(201).json(campaign);
   }
 
@@ -285,17 +292,12 @@ export function createApp(options = {}) {
       });
     }
 
-<<<<<<< codex/issues-112-110-115-123
     const campaign = db.update(req.params.id, req.body);
     if (!campaign) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
 
     return res.json(campaign);
-=======
-    const updated = db.update(req.params.id, req.body);
-    return res.json(updated);
->>>>>>> main
   }
 
   function deleteCampaign(req, res) {

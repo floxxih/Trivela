@@ -237,3 +237,26 @@ fn test_campaign_rewards_integration_flow() {
     assert_eq!(rewards.balance(&user), 50);
     assert_eq!(rewards.total_claimed(), 70);
 }
+
+#[test]
+fn test_schema_version_and_migrate_entrypoint() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, RewardsContract);
+    let client = RewardsContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let other = Address::generate(&env);
+
+    client.initialize(&admin, &symbol_short!("Trivela"), &symbol_short!("TVL"));
+    assert_eq!(client.schema_version(), 1);
+
+    env.mock_all_auths();
+    let migrated = client.migrate(&admin, &1);
+    assert_eq!(migrated, 1);
+    assert_eq!(client.schema_version(), 1);
+
+    let unsupported = client.try_migrate(&admin, &2);
+    assert_eq!(unsupported, Err(Ok(Error::UnsupportedMigration)));
+
+    let unauthorized = client.try_migrate(&other, &1);
+    assert_eq!(unauthorized, Err(Ok(Error::Unauthorized)));
+}

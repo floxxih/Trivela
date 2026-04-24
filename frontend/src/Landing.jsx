@@ -59,6 +59,7 @@ export default function Landing({
   const [campaignsError, setCampaignsError] = useState('');
   const [isCampaignsLoading, setIsCampaignsLoading] = useState(true);
   const [campaignPage, setCampaignPage] = useState(1);
+  const [campaignQuery, setCampaignQuery] = useState('');
   const [campaignRefreshKey, setCampaignRefreshKey] = useState(0);
   const [pagination, setPagination] = useState(() => getFallbackPagination([], 1));
   const campaignContract = getCampaignContract();
@@ -69,7 +70,15 @@ export default function Landing({
     setIsCampaignsLoading(true);
     setCampaignsError('');
 
-    fetch(apiUrl(`/api/v1/campaigns?page=${campaignPage}&limit=${CAMPAIGNS_PER_PAGE}`), {
+    const params = new URLSearchParams({
+      page: String(campaignPage),
+      limit: String(CAMPAIGNS_PER_PAGE),
+    });
+    if (campaignQuery.trim().length > 0) {
+      params.set('q', campaignQuery.trim());
+    }
+
+    fetch(apiUrl(`/api/v1/campaigns?${params.toString()}`), {
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -109,7 +118,7 @@ export default function Landing({
       });
 
     return () => controller.abort();
-  }, [campaignPage, campaignRefreshKey]);
+  }, [campaignPage, campaignRefreshKey, campaignQuery]);
 
   // Removed local loadPoints effect as it is now handled in App.jsx
 
@@ -286,6 +295,22 @@ export default function Landing({
           <p className="section-subtitle">
             Paginated from the backend API with keyboard-friendly previous and next controls.
           </p>
+          <div className="campaign-search">
+            <label htmlFor="campaign-search-input" className="campaign-search-label">
+              Search campaigns
+            </label>
+            <input
+              id="campaign-search-input"
+              type="search"
+              value={campaignQuery}
+              onChange={(event) => {
+                setCampaignPage(1);
+                setCampaignQuery(event.target.value);
+              }}
+              className="campaign-search-input"
+              placeholder="Search by campaign name or description"
+            />
+          </div>
 
           <div className="campaigns-panel" aria-busy={isCampaignsLoading}>
             {isCampaignsLoading ? (
