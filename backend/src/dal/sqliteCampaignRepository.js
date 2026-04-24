@@ -7,19 +7,38 @@ CREATE TABLE IF NOT EXISTS campaigns (
   description       TEXT    NOT NULL DEFAULT '',
   active            INTEGER NOT NULL DEFAULT 1,
   reward_per_action INTEGER NOT NULL DEFAULT 0,
+  start_date        TEXT,
+  end_date          TEXT,
   created_at        TEXT    NOT NULL
 );
 `;
 
+/**
+ * Status rules (deterministic, evaluated at read time):
+ *   ended   — end_date is set and end_date <= now
+ *   upcoming — start_date is set and start_date > now (and not ended)
+ *   active  — everything else (within range or no date constraints)
+ */
+export function computeCampaignStatus({ startDate, endDate }) {
+  const now = new Date();
+  if (endDate && new Date(endDate) <= now) return 'ended';
+  if (startDate && new Date(startDate) > now) return 'upcoming';
+  return 'active';
+}
+
 function rowToCampaign(row) {
-  return {
+  const campaign = {
     id: String(row.id),
     name: row.name,
     description: row.description,
     active: row.active === 1,
     rewardPerAction: row.reward_per_action,
+    startDate: row.start_date ?? null,
+    endDate: row.end_date ?? null,
     createdAt: row.created_at,
   };
+  campaign.status = computeCampaignStatus(campaign);
+  return campaign;
 }
 
 export function createSqliteCampaignRepository({
@@ -33,7 +52,7 @@ export function createSqliteCampaignRepository({
     const count = db.prepare('SELECT COUNT(*) AS n FROM campaigns').get().n;
     if (count === 0) {
       const insert = db.prepare(
-        'INSERT INTO campaigns (name, description, active, reward_per_action, created_at) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO campaigns (name, description, active, reward_per_action, start_date, end_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       );
       const insertMany = db.transaction((rows) => {
         for (const row of rows) {
@@ -42,6 +61,8 @@ export function createSqliteCampaignRepository({
             row.description ?? '',
             row.active ? 1 : 0,
             row.rewardPerAction ?? 0,
+            row.startDate ?? null,
+            row.endDate ?? null,
             row.createdAt ?? new Date().toISOString(),
           );
         }
@@ -90,24 +111,26 @@ export function createSqliteCampaignRepository({
     return row ? rowToCampaign(row) : undefined;
   }
 
-  function create({ name, description = '', rewardPerAction = 0 }) {
+  function create({ name, description = '', rewardPerAction = 0, startDate = null, endDate = null }) {
     const createdAt = new Date().toISOString();
     const info = db
       .prepare(
-        'INSERT INTO campaigns (name, description, active, reward_per_action, created_at) VALUES (?, ?, 1, ?, ?)',
+        'INSERT INTO campaigns (name, description, active, reward_per_action, start_date, end_date, created_at) VALUES (?, ?, 1, ?, ?, ?, ?)',
       )
-      .run(name, description, rewardPerAction, createdAt);
+      .run(name, description, rewardPerAction, startDate, endDate, createdAt);
 
     return getById(info.lastInsertRowid);
   }
 
   function update(id, fields) {
-    const allowed = ['name', 'description', 'active', 'rewardPerAction'];
+    const allowed = ['name', 'description', 'active', 'rewardPerAction', 'startDate', 'endDate'];
     const columnMap = {
       name: 'name',
       description: 'description',
       active: 'active',
       rewardPerAction: 'reward_per_action',
+      startDate: 'start_date',
+      endDate: 'end_date',
     };
     const sets = [];
     const values = [];

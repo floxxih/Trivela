@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSqliteCampaignRepository } from './sqliteCampaignRepository.js';
+import { createSqliteCampaignRepository, computeCampaignStatus } from './sqliteCampaignRepository.js';
 
 function seedCampaigns() {
   return [
@@ -53,4 +53,76 @@ test('sqlite campaign repository creates, updates, and deletes campaigns', () =>
   assert.equal(repository.delete(created.id), true);
   assert.equal(repository.getById(created.id), undefined);
   assert.equal(repository.delete(created.id), false);
+});
+
+test('computeCampaignStatus returns active when no dates are set', () => {
+  assert.equal(computeCampaignStatus({ startDate: null, endDate: null }), 'active');
+});
+
+test('computeCampaignStatus returns upcoming when startDate is in the future', () => {
+  const future = new Date(Date.now() + 86_400_000).toISOString();
+  assert.equal(computeCampaignStatus({ startDate: future, endDate: null }), 'upcoming');
+});
+
+test('computeCampaignStatus returns ended when endDate is in the past', () => {
+  const past = new Date(Date.now() - 86_400_000).toISOString();
+  assert.equal(computeCampaignStatus({ startDate: null, endDate: past }), 'ended');
+});
+
+test('computeCampaignStatus returns active when within start and end date range', () => {
+  const past = new Date(Date.now() - 86_400_000).toISOString();
+  const future = new Date(Date.now() + 86_400_000).toISOString();
+  assert.equal(computeCampaignStatus({ startDate: past, endDate: future }), 'active');
+});
+
+test('computeCampaignStatus prioritises ended over upcoming', () => {
+  // end_date already passed — campaign is ended regardless of start_date
+  const past = new Date(Date.now() - 86_400_000).toISOString();
+  assert.equal(computeCampaignStatus({ startDate: past, endDate: past }), 'ended');
+});
+
+test('campaign repository attaches computed status to returned campaigns', () => {
+  const future = new Date(Date.now() + 86_400_000).toISOString();
+  const past = new Date(Date.now() - 86_400_000).toISOString();
+
+  const repository = createSqliteCampaignRepository();
+
+  const upcoming = repository.create({
+    name: 'Future Campaign',
+    rewardPerAction: 5,
+    startDate: future,
+  });
+  assert.equal(upcoming.status, 'upcoming');
+  assert.equal(upcoming.startDate, future);
+
+  const ended = repository.create({
+    name: 'Old Campaign',
+    rewardPerAction: 5,
+    endDate: past,
+  });
+  assert.equal(ended.status, 'ended');
+  assert.equal(ended.endDate, past);
+
+  const active = repository.create({
+    name: 'Running Campaign',
+    rewardPerAction: 5,
+    startDate: past,
+    endDate: future,
+  });
+  assert.equal(active.status, 'active');
+});
+
+test('campaign repository update can set and clear startDate/endDate', () => {
+  const future = new Date(Date.now() + 86_400_000).toISOString();
+  const repository = createSqliteCampaignRepository();
+
+  const created = repository.create({ name: 'Test', rewardPerAction: 1 });
+  assert.equal(created.status, 'active');
+
+  const withStart = repository.update(created.id, { startDate: future });
+  assert.equal(withStart.status, 'upcoming');
+
+  const cleared = repository.update(created.id, { startDate: null });
+  assert.equal(cleared.status, 'active');
+  assert.equal(cleared.startDate, null);
 });
