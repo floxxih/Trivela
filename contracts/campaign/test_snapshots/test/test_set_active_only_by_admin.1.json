@@ -52,6 +52,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "anonce"
+                      },
+                      "val": {
+                        "u64": "0"
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "count"
                       },
                       "val": {
